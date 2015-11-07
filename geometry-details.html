@@ -122,7 +122,8 @@ function animate() {
     innerMesh = compose(compositions[middleGeometry], new THREE.Mesh(geometries[innerGeometry], material.clone()));
     innerMesh.matrix.scale(innerScaleVector);
     innerMesh.matrix.setPosition(compositions[outerGeometry][innerPositionIndex]);
-    innerMesh.matrix.multiply(middleMesh.matrix);
+    //innerMesh.matrix.multiply(middleMesh.matrix)
+    innerMesh.matrix.multiplyMatrices(middleMesh.matrix, innerMesh.matrix);
     scene.add(innerMesh);
 
     outerMesh.children[0].material.transparent = true;
@@ -164,7 +165,14 @@ function animate() {
   innerMesh.matrix.multiplyScalar(scaleFactor);
   innerMesh.matrix.elements[15] = 1;
 
+  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.1);
+  var recenterMatrix = (new THREE.Matrix4()).setPosition(recenter);
 
+  if (middleMesh) {
+    middleMesh.matrix.multiplyMatrices(recenterMatrix, middleMesh.matrix);
+  }
+  outerMesh.matrix.multiplyMatrices(recenterMatrix, outerMesh.matrix);
+  innerMesh.matrix.multiplyMatrices(recenterMatrix, innerMesh.matrix);
   //controls.update();
   /*while (lastAdded.length) {
     scene.remove(lastAdded.pop());
