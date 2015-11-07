@@ -127,9 +127,10 @@ function animate() {
     scene.add(innerMesh);
 
     outerMesh.children[0].material.transparent = true;
-    middleMesh.children[innerPositionIndex].material = material.clone();
-    middleMesh.children[innerPositionIndex].material.transparent = true;
-    innerMesh.children[0].material.transparent = true;
+    //middleMesh.children[innerPositionIndex].material = material.clone();
+    //middleMesh.children[innerPositionIndex].material.transparent = true;
+    middleMesh.children[innerPositionIndex].visible = false;
+    //innerMesh.children[0].material.transparent = true;
   } else if (middleMesh && Math.floor((position + 50) / 100) - Math.floor((lastPosition + 50) / 100) > 0) {
     // transition complete
     outerComposition = outerGeometry;
@@ -146,7 +147,7 @@ function animate() {
     innerMesh.children[0].material.transparent = false;
   }
 
-  var scaleFactor = Math.pow(1.02, position - lastPosition);
+  var scaleFactor = Math.pow(1 / innerScale, (position - lastPosition) / 100); // Math.pow(1.02, position - lastPosition);
 
   if (middleMesh) {
     // transitioning
@@ -154,8 +155,8 @@ function animate() {
     var fadingPos = (position % 100) / 50;
 
     outerMesh.children[0].material.opacity = 1 - fadingPos;
-    middleMesh.children[innerPositionIndex].material.opacity = 1 - fadingPos;
-    innerMesh.children[0].material.opacity = fadingPos;
+    //middleMesh.children[innerPositionIndex].material.opacity = 1 - fadingPos;
+    //innerMesh.children[0].material.opacity = fadingPos;
 
     middleMesh.matrix.multiplyScalar(scaleFactor);
     middleMesh.matrix.elements[15] = 1;
@@ -165,7 +166,7 @@ function animate() {
   innerMesh.matrix.multiplyScalar(scaleFactor);
   innerMesh.matrix.elements[15] = 1;
 
-  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.1);
+  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04);
   var recenterMatrix = (new THREE.Matrix4()).setPosition(recenter);
 
   if (middleMesh) {
@@ -270,9 +271,10 @@ function composedTetrahedron(max, space) {
   for (var z = 0; z <= max; z++) {
     for (var a = 0; a <= max - z; a++) {
       for (var b = 0; b <= z; b++) {
-        var pos = new THREE.Vector3((a + b) * cubeSize,
-                           (a + (z - b)) * cubeSize,
-                           z * cubeSize);
+        var pos = new THREE.Vector3(a + b,
+                           a + (z - b),
+                           max - z);
+        //pos.multiplyScalar(cubeSize);
         pos.sub(centerVector);
         pos.multiplyScalar(space);
         composed.push(pos);
