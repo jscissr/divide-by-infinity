@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<title>geometry details</title>
+<style>
+body { margin: 0; overflow: hidden; }
+</style>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
+<script src="https://rawgit.com/mrdoob/three.js/master/examples/js/controls/OrbitControls.js"></script>
+<script>
+/*
+Phases of animation:
+
+1. Big composition with one individual part replaced by a small composition
+2. Big composition and individual part of middle composition fading out, at the same time small copmosition fading in
+
+*/
+
+(function() {
+
+var camera, controls, scene, renderer;
+
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+}
+
+function init() {
+  camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000 );
+  camera.position.z = 500;
+
+  controls = new THREE.OrbitControls( camera );
+  controls.damping = 0.2;
+  //controls.addEventListener( 'change', render );
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2( 0xcccccc, 0.0015 );
+
+
+  // lights
+
+  var light = new THREE.DirectionalLight( 0xffffff );
+  light.position.set(1, 0, 0);
+  scene.add(light);
+
+  light = new THREE.DirectionalLight( 0x002288 );
+  light.position.set(-1, -1, -1);
+  scene.add(light);
+
+  light = new THREE.DirectionalLight( 0xaa2222 );
+  light.position.set(0, 0.5, 1);
+  scene.add(light);
+
+  light = new THREE.AmbientLight( 0x222222 );
+  scene.add(light);
+
+
+  // renderer
+  var container = document.querySelector('body');
+
+  renderer = new THREE.WebGLRenderer({antialias: true});
+  renderer.setClearColor(scene.fog.color);
+  container.appendChild(renderer.domElement);
+
+  initAnimation();
+
+  window.addEventListener('resize', onWindowResize, false);
+  onWindowResize();
+}
+
+
+var compositionSize = 7,
+    compositionSpace = 2.5;
+
+var geometries = [
+  new THREE.BoxGeometry(2, 2, 2),
+  new THREE.IcosahedronGeometry(1.2, 2),
+  new THREE.TetrahedronGeometry(2)
+];
+var compositionFuncs = [
+  composedCube,
+  composedSphere,
+  composedTetrahedron
+];
+var compositions = compositionFuncs.map(function(func) { return func(compositionSize, compositionSpace); });
+
+var innerScale = 2 / (compositionSize * compositionSpace + 2); // 2 is the size of one cube
+var innerScaleVector = new THREE.Vector3(innerScale, innerScale, innerScale);
+var material = new THREE.MeshPhongMaterial({color:0xffffff, shading: THREE.FlatShading});
+
+
+var position = 0;
+var lastPosition = -1;
+var step = 1;
+
+var outerComposition,
+    outerGeometry,
+    middleGeometry,
+    innerGeometry;
+var outerMesh,
+    middleMesh,
+    innerMesh;
+var middlePositionIndex,
+    innerPositionIndex;
+
+var lastAdded = [];
+function animate() {
+  requestAnimationFrame(animate);
+
+  if (!middleMesh && Math.floor(position / 100) - Math.floor(lastPosition / 100) > 0) {
+    // transition starting
+    middleGeometry = innerGeometry;
+    innerGeometry = arrayRandom(geometries);
+
+    middlePositionIndex = innerPositionIndex;
+    innerPositionIndex = arrayRandom(compositions[outerGeometry]);
+
+    middleMesh = innerMesh;
+    innerMesh = compose(compositions[middleGeometry], new THREE.Mesh(geometries[innerGeometry], material.clone()));
+    innerMesh.matrix.scale(innerScaleVector);
+    innerMesh.matrix.setPosition(compositions[outerGeometry][innerPositionIndex]);
+    innerMesh.matrix.multiply(middleMesh.matrix);
+    scene.add(innerMesh);
+
+    outerMesh.children[0].material.transparent = true;
+    middleMesh.children[innerPositionIndex].material = material.clone();
+    middleMesh.children[innerPositionIndex].material.transparent = true;
+    innerMesh.children[0].material.transparent = true;
+  } else if (middleMesh && Math.floor((position + 50) / 100) - Math.floor((lastPosition + 50) / 100) > 0) {
+    // transition complete
+    outerComposition = outerGeometry;
+    outerGeometry = middleGeometry;
+    middleGeometry = null;
+
+    scene.remove(outerMesh);
+    outerMesh = middleMesh;
+    middleMesh = null;
+
+    middlePositionIndex = null;
+
+    outerMesh.children[innerPositionIndex].visible = false;
+    innerMesh.children[0].material.transparent = false;
+  }
+
+  var scaleFactor = Math.pow(1.02, position - lastPosition);
+
+  if (middleMesh) {
+    // transitioning
+
+    var fadingPos = (position % 100) / 50;
+
+    outerMesh.children[0].material.opacity = 1 - fadingPos;
+    middleMesh.children[innerPositionIndex].material.opacity = 1 - fadingPos;
+    innerMesh.children[0].material.opacity = fadingPos;
+
+    middleMesh.matrix.multiplyScalar(scaleFactor);
+    middleMesh.matrix.elements[15] = 1;
+  }
+  outerMesh.matrix.multiplyScalar(scaleFactor);
+  outerMesh.matrix.elements[15] = 1;
+  innerMesh.matrix.multiplyScalar(scaleFactor);
+  innerMesh.matrix.elements[15] = 1;
+
+
+  //controls.update();
+  /*while (lastAdded.length) {
+    scene.remove(lastAdded.pop());
+  }
+
+  var toggle = Math.floor(time / 1000) % 2;
+  for (var i = 0; i < 2; i++) {
+
+    var geometry = geometries[Math.floor(time / 300 + 1 + i) % 3];
+    //geometry = geometries[0];
+
+    var composition = compositions[Math.floor(time / 300 + i) % 3];
+    var mesh = compose(composition, new THREE.Mesh(geometry, material));
+    //var mesh = new THREE.Mesh(geometry, material);
+
+    mesh.scale.set(15, 15, 15);
+    mesh.updateMatrix();
+
+    scene.add(mesh);
+    lastAdded.push(mesh);
+
+  }*/
+
+  renderer.render(scene, camera);
+
+  lastPosition = position;
+  position += step;
+}
+
+function initAnimation() {
+  //fill the vars just as much that no errors are thrown
+  outerComposition = outerGeometry = innerGeometry = 0;
+  outerMesh = innerMesh = compose(compositions[0], new THREE.Mesh(geometries[0], material.clone()));
+
+  outerMesh.matrix.makeScale(15, 15, 15);
+
+  //trigger the transitions a few times
+  //TODO
+}
+
+function compose(vectors, mesh) {
+  var composed = new THREE.Object3D();
+  composed.matrixAutoUpdate = false;
+  for (var i = 0; i < vectors.length; i++) {
+    var clone = mesh.clone();
+    clone.matrixAutoUpdate = false;
+    clone.matrix.setPosition(vectors[i]);
+    composed.add(clone);
+  }
+  return composed;
+}
+
+function composedCube(max, space) {
+  var composed = [];
+  var centerVector = new THREE.Vector3(max / 2, max / 2, max / 2);
+
+  for (var x = 0; x <= max; x++) {
+    for (var y = 0; y <= max; y++) {
+      for (var z = 0; z <= max; z++) {
+        var pos = new THREE.Vector3(x, y, z);
+        pos.sub(centerVector);
+        pos.multiplyScalar(space);
+        composed.push(pos);
+      }
+    }
+  }
+  return composed;
+}
+
+function composedSphere(max, space) {
+  var composed = [];
+  var centerVector = new THREE.Vector3(max / 2, max / 2, max / 2);
+
+  for (var x = 0; x <= max; x++) {
+    for (var y = 0; y <= max; y++) {
+      for (var z = 0; z <= max; z++) {
+        var pos = new THREE.Vector3(x, y, z);
+        pos.sub(centerVector);
+        if (pos.length() <= max / 2 + 0.5) {
+          pos.multiplyScalar(space);
+          composed.push(pos);
+        }
+      }
+    }
+  }
+  return composed;
+}
+
+function composedTetrahedron(max, space) {
+  var composed = [];
+  var cubeSize = 1 / Math.sqrt(2);
+  var centerVector = new THREE.Vector3(cubeSize * max / 2,
+      cubeSize * max / 2, cubeSize * max / 2);
+
+  for (var z = 0; z <= max; z++) {
+    for (var a = 0; a <= max - z; a++) {
+      for (var b = 0; b <= z; b++) {
+        var pos = new THREE.Vector3((a + b) * cubeSize,
+                           (a + (z - b)) * cubeSize,
+                           z * cubeSize);
+        pos.sub(centerVector);
+        pos.multiplyScalar(space);
+        composed.push(pos);
+      }
+    }
+  }
+  return composed;
+}
+
+/*function composedTetrahedron2(mesh, max, space) {
+  var composed = [];
+  var centerVector = new THREE.Vector3(max / 2,
+                                       (max * Math.sqrt(3) / 2) / 2,
+                                       (max * Math.sqrt(6) / 3) / 2);
+
+  for (var z = 0; z <= max; z++) {
+    for (var y = 0; y <= max - z; y++) {
+      for (var x = 0; x <= max - z - y; x++) {
+        var clone = mesh.clone();
+        clone.position.set(x + (y + z) / 2,
+                   y * Math.sqrt(3) / 2 + z / 2,
+                   z * Math.sqrt(6) / 3);
+        clone.position.sub(centerVector);
+        clone.position.multiplyScalar(space);
+        clone.updateMatrix();
+        clone.matrixAutoUpdate = false;
+        composed.add(clone);
+      }
+    }
+  }
+  return composed;
+}*/
+
+function arrayRandom(array) {
+  return Math.floor(Math.random() * array.length);
+}
+
+function matrix4ToString(matrix) {
+  var strings = [].map.call(matrix.elements, String);
+  var maxLength = strings.reduce(function(max, string) {
+    return Math.max(max, string.length);
+  }, 0);
+  return strings.reduce(function(out, string, index) {
+    while (string.length < maxLength) {
+      string += ' '; // pad with spaces
+    }
+    return out + (index % 4 ? ', ' : '\n') + string;
+  }, '');
+}
+
+init();
+requestAnimationFrame(animate);
+
+})();
+</script>
