@@ -1,0 +1,25 @@
+{
+  "name": "geometry-details",
+  "authors": [
+    "Jan Schär <jscissr@gmail.com>"
+  ],
+  "description": "Arts project with WebGL & Material Design",
+  "main": "index.html",
+  "moduleType": [],
+  "keywords": [
+    "geometry",
+    "art",
+    "webgl",
+    "material"
+  ],
+  "license": "MIT",
+  "homepage": "http://jscissr.github.io/geometry-details/",
+  "private": true,
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.2.0",
+    "paper-fab": "PolymerElements/paper-fab#^1.0.6",
+    "paper-toolbar": "PolymerElements/paper-toolbar#^1.0.4",
+    "paper-icon-button": "PolymerElements/paper-icon-button#^1.0.5",
+    "paper-header-panel": "PolymerElements/paper-header-panel#^1.0.5"
+  }
+}

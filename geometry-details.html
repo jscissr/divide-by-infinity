@@ -1,9 +1,35 @@
 <!DOCTYPE html>
 <title>geometry details</title>
 <style>
-body { margin: 0; overflow: hidden; }
+#play-pause {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  background: #ff5252; /* paper-red-a200 */
+}
+canvas {
+  display: block;
+}
 </style>
-<body>
+<script src="bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
+<link href="bower_components/paper-fab/paper-fab.html" rel="import">
+<link href="bower_components/paper-toolbar/paper-toolbar.html" rel="import">
+<link href="bower_components/iron-icons/iron-icons.html" rel="import">
+<link href="bower_components/iron-icons/av-icons.html" rel="import">
+<link href="bower_components/paper-icon-button/paper-icon-button.html" rel="import">
+<link href="bower_components/paper-header-panel/paper-header-panel.html" rel="import">
+<body class="fullbleed layout vertical">
+<paper-header-panel class="flex">
+  <paper-toolbar>
+    <paper-icon-button icon="menu"></paper-icon-button>
+    <div class="title">geometry details</div>
+    <paper-icon-button icon="more-vert"></paper-icon-button>
+  </paper-toolbar>
+  <div>
+    <div id="canvas-container"></div>
+    <paper-fab icon="av:pause" id="play-pause"></paper-fab>
+  </div>
+</paper-header-panel>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
 <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/controls/OrbitControls.js"></script>
 <script>
@@ -17,19 +43,34 @@ Phases of animation:
 
 (function() {
 
+var playPause = document.querySelector('#play-pause');
+var playing = true;
+playPause.addEventListener('click', function () {
+  playing = !playing;
+  playPause.icon = playing ? 'av:pause' : 'av:play-arrow';
+});
+
 var camera, controls, scene, renderer;
 
+function getSize() {
+  return {
+    height: window.innerHeight - 64,
+    width: window.innerWidth
+  };
+}
 
 function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  var size = getSize();
+  camera.aspect = size.width / size.height;
   camera.updateProjectionMatrix();
 
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(size.width, size.height);
   renderer.setPixelRatio(window.devicePixelRatio);
 }
 
 function init() {
-  camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000 );
+  var size = getSize();
+  camera = new THREE.PerspectiveCamera( 60, size.width / size.height, 1, 1000 );
   camera.position.z = 500;
 
   controls = new THREE.OrbitControls( camera );
@@ -37,7 +78,7 @@ function init() {
   //controls.addEventListener( 'change', render );
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2( 0xcccccc, 0.0015 );
+  scene.fog = new THREE.FogExp2( 0x000000, 0.0015 );
 
 
   // lights
@@ -59,7 +100,7 @@ function init() {
 
 
   // renderer
-  var container = document.querySelector('body');
+  var container = document.querySelector('#canvas-container');
 
   renderer = new THREE.WebGLRenderer({antialias: true});
   renderer.setClearColor(scene.fog.color);
@@ -109,6 +150,10 @@ var middlePositionIndex,
 var lastAdded = [];
 function animate() {
   requestAnimationFrame(animate);
+
+  if (!playing) {
+    return renderer.render(scene, camera);
+  }
 
   if (!middleMesh && Math.floor(position / 100) - Math.floor(lastPosition / 100) > 0) {
     // transition starting
