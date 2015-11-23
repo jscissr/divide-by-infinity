@@ -16,6 +16,7 @@ canvas {
 <link href="bower_components/paper-toolbar/paper-toolbar.html" rel="import">
 <link href="bower_components/iron-icons/iron-icons.html" rel="import">
 <link href="bower_components/iron-icons/av-icons.html" rel="import">
+<link href="bower_components/iron-icons/image-icons.html" rel="import">
 <link href="bower_components/paper-icon-button/paper-icon-button.html" rel="import">
 <link href="bower_components/paper-header-panel/paper-header-panel.html" rel="import">
 <body class="fullbleed layout vertical">
@@ -23,6 +24,7 @@ canvas {
   <paper-toolbar>
     <paper-icon-button icon="menu"></paper-icon-button>
     <div class="title">geometry details</div>
+    <paper-icon-button icon="image:flash-on" id="flash"></paper-icon-button>
     <paper-icon-button icon="more-vert"></paper-icon-button>
   </paper-toolbar>
   <div>
@@ -47,6 +49,17 @@ var playing = true;
 playPause.addEventListener('click', function () {
   playing = !playing;
   playPause.icon = playing ? 'av:pause' : 'av:play-arrow';
+});
+
+var flashButton = document.querySelector('#flash');
+var flashActivated = false;
+flashButton.addEventListener('click', function () {
+  flashActivated = !flashActivated;
+  flashButton.style.color = flashActivated ? '#ffff00' : 'white';
+  step = flashActivated ? 3 : 1;
+  if (!flashActivated) {
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+  }
 });
 
 var camera, controls, scene, renderer;
@@ -151,6 +164,10 @@ function animate() {
     return renderer.render(scene, camera);
   }
 
+  if (flashActivated) {
+    camera.lookAt(sphereRandom().multiplyScalar(5));
+  }
+
   if (!middleMesh && Math.floor(position / 100) - Math.floor(lastPosition / 100) > 0) {
     // transition starting
     middleGeometry = innerGeometry;
@@ -206,7 +223,7 @@ function animate() {
   innerMesh.matrix.multiplyScalar(scaleFactor);
   innerMesh.matrix.elements[15] = 1;
 
-  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04);
+  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04 * step);
   var recenterMatrix = (new THREE.Matrix4()).setPosition(recenter);
 
   if (middleMesh) {
@@ -303,6 +320,17 @@ function composedTetrahedron(max, space) {
 
 function arrayRandom(array) {
   return Math.floor(Math.random() * array.length);
+}
+
+function sphereRandom() {
+  while (true) {
+    var x = Math.random() * 2 - 1;
+    var y = Math.random() * 2 - 1;
+    var z = Math.random() * 2 - 1;
+    if (x * x + y * y + z * z <= 1) {
+      return new THREE.Vector3(x, y, z);
+    }
+  }
 }
 
 function matrix4ToString(matrix) {
