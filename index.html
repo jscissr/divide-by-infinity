@@ -31,7 +31,7 @@ canvas {
   </paper-toolbar>
   <div>
     <div id="canvas-container"></div>
-    <paper-fab icon="av:pause" id="play-pause"></paper-fab>
+    <paper-fab id="play-pause"></paper-fab>
   </div>
 </paper-header-panel>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
@@ -47,23 +47,32 @@ Phases of animation:
 
 (function() {
 
-var playPause = document.querySelector('#play-pause');
-var playing = true;
-playPause.addEventListener('click', function () {
-  playing = !playing;
-  playPause.icon = playing ? 'av:pause' : 'av:play-arrow';
-});
+var state = {
+  playing: true,
+  flash: false,
+};
+var stateButtons = {};
 
-var flashButton = document.querySelector('#flash');
-var flashActivated = false;
-flashButton.addEventListener('click', function () {
-  flashActivated = !flashActivated;
-  flashButton.style.color = flashActivated ? '#ffff00' : 'white';
-  step = flashActivated ? 3 : 1;
-  if (!flashActivated) {
+function buttonStateChanged() {
+  stateButtons.playing.icon = state.playing ? 'av:pause' : 'av:play-arrow';
+  stateButtons.flash.style.color = state.flash ? '#ffff00' : 'white';
+  step = state.flash ? 3 : 0.5;
+  if (!state.flash) {
     camera.lookAt(new THREE.Vector3(0, 0, 0));
   }
-});
+}
+
+function toggleButton(selector, name) {
+  var button = document.querySelector(selector);
+  stateButtons[name] = button;
+  button.addEventListener('click', function() {
+    state[name] = !state[name];
+    buttonStateChanged();
+  });
+}
+toggleButton('#play-pause', 'playing');
+toggleButton('#flash', 'flash');
+
 
 var camera, controls, scene, renderer, stats;
 var raycaster = new THREE.Raycaster();
@@ -106,6 +115,8 @@ function init() {
   container.addEventListener('mousedown', onContainerDown, false);
   container.addEventListener('mousemove', onContainerMove, false);
   container.addEventListener('mouseup', onContainerUp, false);
+  
+  buttonStateChanged();
 
   scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x000000, 0.0015);
@@ -160,7 +171,7 @@ var material = new THREE.MeshPhongMaterial({color:0xffffff, shading: THREE.FlatS
 
 var position = 0;
 var lastPosition = -1;
-var step = 1;
+var step;
 
 var outerComposition,
     outerGeometry,
@@ -175,12 +186,12 @@ function animate() {
   requestAnimationFrame(animate);
   stats.begin();
 
-  if (!playing) {
+  if (!state.playing) {
     stats.end();
     return renderer.render(scene, camera);
   }
 
-  if (flashActivated) {
+  if (state.flash) {
     camera.lookAt(sphereRandom().multiplyScalar(5));
   }
 
