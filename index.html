@@ -26,8 +26,8 @@ canvas {
   <paper-toolbar>
     <paper-icon-button icon="menu"></paper-icon-button>
     <div class="title">geometry details</div>
+    <paper-icon-button icon="icons:refresh" id="rotate"></paper-icon-button>
     <paper-icon-button icon="image:flash-on" id="flash"></paper-icon-button>
-    <paper-icon-button icon="more-vert"></paper-icon-button>
   </paper-toolbar>
   <div>
     <div id="canvas-container"></div>
@@ -48,6 +48,7 @@ Phases of animation:
 
 var state = {
   playing: true,
+  rotate: false,
   flash: false,
 };
 var stateButtons = {};
@@ -55,6 +56,7 @@ var stateButtons = {};
 function buttonStateChanged() {
   stateButtons.playing.icon = state.playing ? 'av:pause' : 'av:play-arrow';
   stateButtons.flash.style.color = state.flash ? '#ffff00' : 'white';
+  stateButtons.rotate.style.color = state.rotate ? '#ffff00' : 'white';
   step = !state.playing ? 0 : state.flash ? 2 : 0.5;
 }
 
@@ -67,6 +69,7 @@ function toggleButton(selector, name) {
   });
 }
 toggleButton('#play-pause', 'playing');
+toggleButton('#rotate', 'rotate');
 toggleButton('#flash', 'flash');
 
 
@@ -173,6 +176,10 @@ var lastAdded = [];
 function animate() {
   requestAnimationFrame(animate);
   stats.begin();
+
+  if (state.rotate && state.playing) {
+    applyGlobalMatrix((new THREE.Matrix4()).makeRotationZ(-Math.PI / 256 * step));
+  }
 
   if (state.flash && state.playing) {
     camera.lookAt(sphereRandom().multiplyScalar(5));
