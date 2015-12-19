@@ -11,6 +11,11 @@
 canvas {
   display: block;
 }
+@media (min-width: 600px) {
+  #scrim {
+    display: none;
+  }
+}
 </style>
 <script src="bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
 <link href="bower_components/paper-fab/paper-fab.html" rel="import">
@@ -20,19 +25,26 @@ canvas {
 <link href="bower_components/iron-icons/image-icons.html" rel="import">
 <link href="bower_components/paper-icon-button/paper-icon-button.html" rel="import">
 <link href="bower_components/paper-header-panel/paper-header-panel.html" rel="import">
+<link href="bower_components/paper-drawer-panel/paper-drawer-panel.html" rel="import">
 <link href="bower_components/paper-styles/paper-styles.html" rel="import">
 <body class="fullbleed layout vertical">
-<paper-header-panel class="flex">
+<paper-header-panel mode="seamed" class="flex">
   <paper-toolbar>
-    <paper-icon-button icon="menu"></paper-icon-button>
+    <paper-icon-button icon="menu" id="toggle-menu"></paper-icon-button>
     <div class="title">geometry details</div>
     <paper-icon-button icon="icons:refresh" id="rotate"></paper-icon-button>
     <paper-icon-button icon="image:flash-on" id="flash"></paper-icon-button>
   </paper-toolbar>
-  <div>
-    <div id="canvas-container"></div>
-    <paper-fab id="play-pause"></paper-fab>
-  </div>
+  <paper-drawer-panel force-narrow disable-edge-swipe>
+    <div drawer>
+      hello!
+    </div>
+    <div main>
+      <div id="canvas-container"></div>
+      <paper-fab id="play-pause"></paper-fab>
+      <div id="dropShadow" class="style-scope paper-header-panel has-shadow"></div>
+    </div>
+  </paper-drawer-panel>
 </paper-header-panel>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
 <script src="https://rawgit.com/mrdoob/stats.js/master/build/stats.min.js"></script>
@@ -46,6 +58,10 @@ Phases of animation:
 */
 
 (function() {
+
+document.querySelector('#toggle-menu').addEventListener('click', function () {
+  document.querySelector('paper-drawer-panel').togglePanel();
+});
 
 var state = {
   playing: true,
@@ -284,6 +300,7 @@ var temp2Matrix4 = new THREE.Matrix4();
 
 function onContainerDown(event) {
   event.preventDefault();
+  event.stopPropagation();
 
   hasMoved = false;
 
