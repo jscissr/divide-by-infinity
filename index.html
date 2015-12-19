@@ -56,7 +56,7 @@ var stateButtons = {};
 function buttonStateChanged() {
   stateButtons.playing.icon = state.playing ? 'av:pause' : 'av:play-arrow';
   stateButtons.flash.style.color = state.flash ? '#ffff00' : 'white';
-  step = state.flash ? 3 : 0.5;
+  step = state.flash ? 2 : 0.5;
   if (!state.flash) {
     camera.lookAt(new THREE.Vector3(0, 0, 0));
   }
@@ -115,7 +115,7 @@ function init() {
   container.addEventListener('mousedown', onContainerDown, false);
   container.addEventListener('mousemove', onContainerMove, false);
   container.addEventListener('mouseup', onContainerUp, false);
-  
+
   buttonStateChanged();
 
   scene = new THREE.Scene();
@@ -140,7 +140,7 @@ function init() {
 
   // renderer
 
-  renderer = new THREE.WebGLRenderer({antialias: true});
+  renderer = new THREE.WebGLRenderer({antialias: false});
   renderer.setClearColor(scene.fog.color);
   container.appendChild(renderer.domElement);
 
