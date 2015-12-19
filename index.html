@@ -37,6 +37,7 @@ canvas {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
 <script src="https://rawgit.com/mrdoob/stats.js/master/build/stats.min.js"></script>
 <script>
+/* globals THREE, Stats */
 /*
 Phases of animation:
 
@@ -261,7 +262,7 @@ function initAnimation() {
   for (var i = 0; i < 2; i++) {
     lastPosition = position;
     position += 100;
-    transitionAnimation()
+    transitionAnimation();
   }
   var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).negate();
   applyGlobalMatrix((new THREE.Matrix4()).setPosition(recenter));
@@ -427,19 +428,6 @@ function sphereRandom() {
       return new THREE.Vector3(x, y, z);
     }
   }
-}
-
-function matrix4ToString(matrix) {
-  var strings = [].map.call(matrix.elements, String);
-  var maxLength = strings.reduce(function(max, string) {
-    return Math.max(max, string.length);
-  }, 0);
-  return strings.reduce(function(out, string, index) {
-    while (string.length < maxLength) {
-      string += ' '; // pad with spaces
-    }
-    return out + (index % 4 ? ', ' : '\n') + string;
-  }, '');
 }
 
 init();
