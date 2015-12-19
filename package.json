@@ -1,0 +1,22 @@
+{
+  "name": "geometry-details",
+  "version": "1.0.0",
+  "description": "Arts project with WebGL & Material Design",
+  "main": "index.js",
+  "devDependencies": {
+    "vulcanize": "^1.14.0"
+  },
+  "scripts": {
+    "build": "vulcanize source.html --inline-scripts > index.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jscissr/geometry-details.git"
+  },
+  "author": "Jan Schär <jscissr@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jscissr/geometry-details/issues"
+  },
+  "homepage": "https://jscissr.github.io/geometry-details/"
+}

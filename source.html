@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width">
+<title>geometry details</title>
+<style>
+body {
+  font-family: 'Roboto', 'Noto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#play-pause {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  background: #ff5252; /* paper-red-a200 */
+}
+canvas {
+  display: block;
+}
+@media (min-width: 600px) {
+  #scrim {
+    display: none;
+  }
+}
+div[drawer] {
+  padding: 16px;
+}
+paper-toolbar .title {
+  overflow: visible !important;
+}
+#stats {
+  position: absolute;
+  bottom: 0;
+  right: -80px;
+  display: none;
+}
+</style>
+<script src="bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
+<link href="bower_components/paper-fab/paper-fab.html" rel="import">
+<link href="bower_components/paper-toolbar/paper-toolbar.html" rel="import">
+<link href="bower_components/iron-icons/iron-icons.html" rel="import">
+<link href="bower_components/iron-icons/av-icons.html" rel="import">
+<link href="bower_components/iron-icons/image-icons.html" rel="import">
+<link href="bower_components/paper-icon-button/paper-icon-button.html" rel="import">
+<link href="bower_components/paper-header-panel/paper-header-panel.html" rel="import">
+<link href="bower_components/paper-drawer-panel/paper-drawer-panel.html" rel="import">
+<link href="bower_components/paper-styles/paper-styles.html" rel="import">
+<link href="bower_components/paper-checkbox/paper-checkbox.html" rel="import">
+<body class="fullbleed layout vertical">
+<paper-header-panel mode="seamed" class="flex">
+  <paper-toolbar>
+    <paper-icon-button icon="menu" id="toggle-menu"></paper-icon-button>
+    <div class="title">geometry details</div>
+    <paper-icon-button icon="icons:refresh" id="rotate"></paper-icon-button>
+    <paper-icon-button icon="image:flash-on" id="flash"></paper-icon-button>
+  </paper-toolbar>
+  <paper-drawer-panel force-narrow disable-edge-swipe>
+    <div drawer>
+      <paper-checkbox id="toggle-stats">Show stats</paper-checkbox>
+    </div>
+    <div main>
+      <div id="canvas-container"></div>
+      <paper-fab id="play-pause"></paper-fab>
+      <div id="dropShadow" class="style-scope paper-header-panel has-shadow"></div>
+    </div>
+  </paper-drawer-panel>
+</paper-header-panel>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
+<script src="https://rawgit.com/mrdoob/stats.js/master/build/stats.min.js"></script>
+<script>
+/* globals THREE, Stats */
+/*
+Phases of animation:
+
+1. Big composition with one individual part replaced by a small composition
+2. Big composition and individual part of middle composition fading out, at the same time small copmosition fading in
+*/
+
+(function() {
+
+document.querySelector('#toggle-menu').addEventListener('click', function() {
+  document.querySelector('paper-drawer-panel').togglePanel();
+});
+
+document.querySelector('#toggle-stats').addEventListener('change', function(event) {
+  stats.domElement.style.display = event.target.checked ? 'block' : 'none';
+});
+
+var state = {
+  playing: true,
+  rotate: false,
+  flash: false,
+};
+var stateButtons = {};
+
+function buttonStateChanged() {
+  stateButtons.playing.icon = state.playing ? 'av:pause' : 'av:play-arrow';
+  stateButtons.flash.style.color = state.flash ? '#ffff00' : 'white';
+  stateButtons.rotate.style.color = state.rotate ? '#ffff00' : 'white';
+  step = !state.playing ? 0 : state.flash ? 2 : 0.5;
+}
+
+function toggleButton(selector, name) {
+  var button = document.querySelector(selector);
+  stateButtons[name] = button;
+  button.addEventListener('click', function() {
+    state[name] = !state[name];
+    buttonStateChanged();
+  });
+}
+toggleButton('#play-pause', 'playing');
+toggleButton('#rotate', 'rotate');
+toggleButton('#flash', 'flash');
+
+
+var camera, scene, renderer, stats;
+
+function getSize() {
+  return {
+    height: window.innerHeight - 64,
+    width: window.innerWidth
+  };
+}
+
+function onWindowResize() {
+  var size = getSize();
+  camera.aspect = size.width / size.height;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(size.width, size.height);
+  renderer.setPixelRatio(window.devicePixelRatio);
+}
+
+function init() {
+  var container = document.querySelector('#canvas-container');
+
+  stats = new Stats();
+  document.querySelector('div[drawer]').appendChild(stats.domElement);
+
+  var size = getSize();
+  camera = new THREE.PerspectiveCamera(60, size.width / size.height, 1, 1000);
+  camera.position.z = 500;
+
+  container.addEventListener('mousedown', onContainerDown);
+  document.addEventListener('mousemove', onContainerMove);
+  document.addEventListener('mouseup', onContainerUp);
+  container.addEventListener('mousewheel', onMouseWheel);
+
+  buttonStateChanged();
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x000000, 0.0015);
+
+  // lights
+
+  var light = new THREE.DirectionalLight(0xffffff);
+  light.position.set(1, 0, 0);
+  scene.add(light);
+
+  light = new THREE.DirectionalLight(0x002288);
+  light.position.set(-1, -1, -1);
+  scene.add(light);
+
+  light = new THREE.DirectionalLight(0xaa2222);
+  light.position.set(0, 0.5, 1);
+  scene.add(light);
+
+  light = new THREE.AmbientLight(0x222222);
+  scene.add(light);
+
+  // renderer
+
+  renderer = new THREE.WebGLRenderer({antialias: false});
+  renderer.setClearColor(scene.fog.color);
+  container.appendChild(renderer.domElement);
+
+  initAnimation();
+
+  window.addEventListener('resize', onWindowResize, false);
+  onWindowResize();
+}
+
+var compositionSize = 7,
+    compositionSpace = 2.5;
+
+var geometries = [
+  new THREE.BoxGeometry(2, 2, 2),
+  new THREE.IcosahedronGeometry(1.2, 2),
+  new THREE.TetrahedronGeometry(2)
+];
+var compositionFuncs = [
+  composedCube,
+  composedSphere,
+  composedTetrahedron
+];
+var compositions = compositionFuncs.map(function(func) { return func(compositionSize, compositionSpace); });
+
+var innerScale = 2 / (compositionSize * compositionSpace + 2); // 2 is the size of one cube
+var innerScaleVector = new THREE.Vector3(innerScale, innerScale, innerScale);
+var material = new THREE.MeshPhongMaterial({color:0xffffff, shading: THREE.FlatShading});
+
+var position = 0;
+var lastPosition;
+var step;
+
+var outerComposition,
+    outerGeometry,
+    middleGeometry,
+    innerGeometry;
+var outerMesh,
+    middleMesh,
+    innerMesh;
+
+function animate() {
+  requestAnimationFrame(animate);
+  stats.begin();
+
+  if (state.rotate) {
+    applyGlobalMatrix((new THREE.Matrix4()).makeRotationZ(-Math.PI / 256 * step));
+  }
+
+  if (state.flash && state.playing) {
+    camera.lookAt(sphereRandom().multiplyScalar(5));
+  } else {
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+  }
+
+  transitionAnimation();
+
+  var scaleFactor = Math.pow(1 / innerScale, (position - lastPosition) / 100);
+
+  if (middleMesh) {
+    // transitioning
+
+    var fadingPos = (position % 100) / 50;
+
+    outerMesh.children[0].material.opacity = 1 - fadingPos;
+    middleMesh.matrix.multiplyScalar(scaleFactor);
+    middleMesh.matrix.elements[15] = 1;
+  }
+  outerMesh.matrix.multiplyScalar(scaleFactor);
+  outerMesh.matrix.elements[15] = 1;
+  innerMesh.matrix.multiplyScalar(scaleFactor);
+  innerMesh.matrix.elements[15] = 1;
+
+
+  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04 * Math.abs(position - lastPosition));
+  applyGlobalMatrix((new THREE.Matrix4()).setPosition(recenter));
+
+
+  renderer.render(scene, camera);
+
+  lastPosition = position;
+  position += step;
+
+  stats.end();
+}
+
+function transitionAnimation() {
+  if (!middleMesh && Math.floor(position / 100) - Math.floor(lastPosition / 100) > 0) {
+    // transition starting
+    middleGeometry = innerGeometry;
+    innerGeometry = arrayRandom(geometries);
+
+    var innerPositionIndex = arrayRandom(compositions[outerGeometry]);
+
+    middleMesh = innerMesh;
+    innerMesh = compose(compositions[middleGeometry], new THREE.Mesh(geometries[innerGeometry], material.clone()));
+    innerMesh.matrix.scale(innerScaleVector);
+    innerMesh.matrix.setPosition(compositions[outerGeometry][innerPositionIndex]);
+    innerMesh.matrix.multiplyMatrices(middleMesh.matrix, innerMesh.matrix);
+    scene.add(innerMesh);
+
+    outerMesh.children[0].material.transparent = true;
+    middleMesh.children[innerPositionIndex].visible = false;
+    //innerMesh.children[0].material.transparent = true;
+  } else if (middleMesh && Math.floor((position + 50) / 100) - Math.floor((lastPosition + 50) / 100) > 0) {
+    // transition complete
+    outerComposition = outerGeometry;
+    outerGeometry = middleGeometry;
+    middleGeometry = null;
+
+    scene.remove(outerMesh);
+    outerMesh = middleMesh;
+    middleMesh = null;
+
+    innerMesh.children[0].material.transparent = false;
+  }
+}
+
+function initAnimation() {
+  //fill the vars just as much that no errors are thrown
+  outerComposition = outerGeometry = innerGeometry = 0;
+  outerMesh = innerMesh = compose(compositions[0], new THREE.Mesh(geometries[0], material.clone()));
+
+  outerMesh.matrix.makeScale(18, 18, 18);
+
+  //trigger the transitions a few times
+  for (var i = 0; i < 2; i++) {
+    lastPosition = position;
+    position += 100;
+    transitionAnimation();
+  }
+  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).negate();
+  applyGlobalMatrix((new THREE.Matrix4()).setPosition(recenter));
+}
+
+// rotate
+var isMouseDown = false
+var rotateSpeed = 2 * Math.PI;
+var rotateStart = new THREE.Vector2();
+var rotateEnd = new THREE.Vector2();
+var rotateDelta = new THREE.Vector2();
+
+// click
+var hasMoved = false;
+var raycaster = new THREE.Raycaster();
+var mouse = new THREE.Vector2();
+var tempMatrix4 = new THREE.Matrix4();
+var temp2Matrix4 = new THREE.Matrix4();
+
+function onContainerDown(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  hasMoved = false;
+
+  isMouseDown = true;
+  rotateStart.set(event.clientX, event.clientY);
+}
+
+function onContainerMove(event) {
+  hasMoved = true;
+
+  if (isMouseDown) {
+    event.preventDefault();
+
+    rotateEnd.set(event.clientX, event.clientY);
+  	rotateDelta.subVectors(rotateEnd, rotateStart);
+
+    var size = getSize();
+  	var euler = new THREE.Euler(rotateDelta.y / size.height * rotateSpeed,
+        rotateDelta.x / size.width * rotateSpeed);
+    applyGlobalMatrix((new THREE.Matrix4()).makeRotationFromEuler(euler));
+
+  	rotateStart.copy(rotateEnd);
+  }
+}
+
+function onContainerUp(event) {
+  if (isMouseDown && !hasMoved) {
+    var size = getSize();
+    mouse.x = (event.clientX / size.width) * 2 - 1;
+    mouse.y = -((event.clientY - 64) / size.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    var outer = middleMesh || outerMesh
+    var intersects = raycaster.intersectObjects(outer.children);
+    if (intersects.length) {
+      tempMatrix4.multiplyMatrices(outer.matrix, intersects[0].object.matrix);
+      intersects[0].object.matrix.copyPosition(temp2Matrix4.multiplyMatrices(temp2Matrix4.getInverse(outer.matrix), innerMesh.matrix));
+      innerMesh.matrix.copyPosition(tempMatrix4);
+    }
+  }
+
+  isMouseDown = false;
+}
+
+function onMouseWheel(event) {
+  event.preventDefault();
+
+  var delta = event.wheelDelta || -event.detail || 0;
+  position += delta > 0 ? 1 : delta < 0 ? -1 : 0;
+}
+
+function applyGlobalMatrix(matrix) {
+  var rotation = (new THREE.Matrix4()).extractRotation(matrix);
+  scene.children.forEach(function (child) {
+    if (child instanceof THREE.DirectionalLight) {
+      child.position.applyMatrix4(rotation);
+    } else {
+      child.matrix.multiplyMatrices(matrix, child.matrix);
+    }
+  });
+}
+
+function compose(vectors, mesh) {
+  var composed = new THREE.Object3D();
+  composed.matrixAutoUpdate = false;
+  for (var i = 0; i < vectors.length; i++) {
+    var clone = mesh.clone();
+    clone.matrixAutoUpdate = false;
+    clone.matrix.setPosition(vectors[i]);
+    composed.add(clone);
+  }
+  return composed;
+}
+
+function composedCube(max, space) {
+  var composed = [];
+  var centerVector = new THREE.Vector3(max / 2, max / 2, max / 2);
+
+  for (var x = 0; x <= max; x++) {
+    for (var y = 0; y <= max; y++) {
+      for (var z = 0; z <= max; z++) {
+        var pos = new THREE.Vector3(x, y, z);
+        pos.sub(centerVector);
+        pos.multiplyScalar(space);
+        composed.push(pos);
+      }
+    }
+  }
+  return composed;
+}
+
+function composedSphere(max, space) {
+  var composed = [];
+  var centerVector = new THREE.Vector3(max / 2, max / 2, max / 2);
+
+  for (var x = 0; x <= max; x++) {
+    for (var y = 0; y <= max; y++) {
+      for (var z = 0; z <= max; z++) {
+        var pos = new THREE.Vector3(x, y, z);
+        pos.sub(centerVector);
+        if (pos.length() <= max / 2 + 0.5) {
+          pos.multiplyScalar(space);
+          composed.push(pos);
+        }
+      }
+    }
+  }
+  return composed;
+}
+
+function composedTetrahedron(max, space) {
+  var composed = [];
+  var cubeSize = 1 / Math.sqrt(2);
+  var centerVector = new THREE.Vector3(cubeSize * max / 2,
+      cubeSize * max / 2, cubeSize * max / 2);
+
+  for (var z = 0; z <= max; z++) {
+    for (var a = 0; a <= max - z; a++) {
+      for (var b = 0; b <= z; b++) {
+        var pos = new THREE.Vector3(a + b,
+                           a + (z - b),
+                           max - z);
+        pos.sub(centerVector);
+        pos.multiplyScalar(space);
+        composed.push(pos);
+      }
+    }
+  }
+  return composed;
+}
+
+function arrayRandom(array) {
+  return Math.floor(Math.random() * array.length);
+}
+
+function sphereRandom() {
+  while (true) {
+    var x = Math.random() * 2 - 1;
+    var y = Math.random() * 2 - 1;
+    var z = Math.random() * 2 - 1;
+    if (x * x + y * y + z * z <= 1) {
+      return new THREE.Vector3(x, y, z);
+    }
+  }
+}
+
+init();
+requestAnimationFrame(animate);
+
+})();
+</script>
