@@ -2,6 +2,10 @@
 <meta name="viewport" content="width=device-width">
 <title>geometry details</title>
 <style>
+body {
+  font-family: 'Roboto', 'Noto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
 #play-pause {
   position: absolute;
   bottom: 24px;
@@ -16,6 +20,18 @@ canvas {
     display: none;
   }
 }
+div[drawer] {
+  padding: 16px;
+}
+paper-toolbar .title {
+  overflow: visible !important;
+}
+#stats {
+  position: absolute;
+  bottom: 0;
+  right: -80px;
+  display: none;
+}
 </style>
 <script src="bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
 <link href="bower_components/paper-fab/paper-fab.html" rel="import">
@@ -27,6 +43,7 @@ canvas {
 <link href="bower_components/paper-header-panel/paper-header-panel.html" rel="import">
 <link href="bower_components/paper-drawer-panel/paper-drawer-panel.html" rel="import">
 <link href="bower_components/paper-styles/paper-styles.html" rel="import">
+<link href="bower_components/paper-checkbox/paper-checkbox.html" rel="import">
 <body class="fullbleed layout vertical">
 <paper-header-panel mode="seamed" class="flex">
   <paper-toolbar>
@@ -37,7 +54,7 @@ canvas {
   </paper-toolbar>
   <paper-drawer-panel force-narrow disable-edge-swipe>
     <div drawer>
-      hello!
+      <paper-checkbox id="toggle-stats">Show stats</paper-checkbox>
     </div>
     <div main>
       <div id="canvas-container"></div>
@@ -59,8 +76,12 @@ Phases of animation:
 
 (function() {
 
-document.querySelector('#toggle-menu').addEventListener('click', function () {
+document.querySelector('#toggle-menu').addEventListener('click', function() {
   document.querySelector('paper-drawer-panel').togglePanel();
+});
+
+document.querySelector('#toggle-stats').addEventListener('change', function(event) {
+  stats.domElement.style.display = event.target.checked ? 'block' : 'none';
 });
 
 var state = {
@@ -112,9 +133,7 @@ function init() {
   var container = document.querySelector('#canvas-container');
 
   stats = new Stats();
-  stats.domElement.style.position = 'absolute';
-  stats.domElement.style.bottom = '0';
-  container.appendChild(stats.domElement);
+  document.querySelector('div[drawer]').appendChild(stats.domElement);
 
   var size = getSize();
   camera = new THREE.PerspectiveCamera(60, size.width / size.height, 1, 1000);
