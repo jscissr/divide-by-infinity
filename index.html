@@ -56,10 +56,7 @@ var stateButtons = {};
 function buttonStateChanged() {
   stateButtons.playing.icon = state.playing ? 'av:pause' : 'av:play-arrow';
   stateButtons.flash.style.color = state.flash ? '#ffff00' : 'white';
-  step = state.flash ? 2 : 0.5;
-  if (!state.flash) {
-    camera.lookAt(new THREE.Vector3(0, 0, 0));
-  }
+  step = !state.playing ? 0 : state.flash ? 2 : 0.5;
 }
 
 function toggleButton(selector, name) {
@@ -186,13 +183,10 @@ function animate() {
   requestAnimationFrame(animate);
   stats.begin();
 
-  if (!state.playing) {
-    stats.end();
-    return renderer.render(scene, camera);
-  }
-
-  if (state.flash) {
+  if (state.flash && state.playing) {
     camera.lookAt(sphereRandom().multiplyScalar(5));
+  } else {
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
   }
 
   if (!middleMesh && Math.floor(position / 100) - Math.floor(lastPosition / 100) > 0) {
@@ -241,14 +235,16 @@ function animate() {
   innerMesh.matrix.multiplyScalar(scaleFactor);
   innerMesh.matrix.elements[15] = 1;
 
-  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04 * step);
-  var recenterMatrix = (new THREE.Matrix4()).setPosition(recenter);
+  if (state.playing) {
+    var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04 * step);
+    var recenterMatrix = (new THREE.Matrix4()).setPosition(recenter);
 
-  if (middleMesh) {
-    middleMesh.matrix.multiplyMatrices(recenterMatrix, middleMesh.matrix);
+    if (middleMesh) {
+      middleMesh.matrix.multiplyMatrices(recenterMatrix, middleMesh.matrix);
+    }
+    outerMesh.matrix.multiplyMatrices(recenterMatrix, outerMesh.matrix);
+    innerMesh.matrix.multiplyMatrices(recenterMatrix, innerMesh.matrix);
   }
-  outerMesh.matrix.multiplyMatrices(recenterMatrix, outerMesh.matrix);
-  innerMesh.matrix.multiplyMatrices(recenterMatrix, innerMesh.matrix);
 
   renderer.render(scene, camera);
 
