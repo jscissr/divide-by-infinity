@@ -7,7 +7,7 @@
     "vulcanize": "^1.14.0"
   },
   "scripts": {
-    "build": "vulcanize source.html --inline-scripts > index.html"
+    "build": "vulcanize source.html --strip-comments --inline-scripts > index.html"
   },
   "repository": {
     "type": "git",
