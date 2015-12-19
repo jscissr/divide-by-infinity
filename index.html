@@ -35,7 +35,6 @@ canvas {
   </div>
 </paper-header-panel>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
-<script src="https://rawgit.com/mrdoob/three.js/master/examples/js/controls/OrbitControls.js"></script>
 <script src="https://rawgit.com/mrdoob/stats.js/master/build/stats.min.js"></script>
 <script>
 /*
@@ -71,11 +70,7 @@ toggleButton('#play-pause', 'playing');
 toggleButton('#flash', 'flash');
 
 
-var camera, controls, scene, renderer, stats;
-var raycaster = new THREE.Raycaster();
-var mouse = new THREE.Vector2();
-var tempMatrix4 = new THREE.Matrix4();
-var temp2Matrix4 = new THREE.Matrix4();
+var camera, scene, renderer, stats;
 
 function getSize() {
   return {
@@ -105,13 +100,9 @@ function init() {
   camera = new THREE.PerspectiveCamera(60, size.width / size.height, 1, 1000);
   camera.position.z = 500;
 
-  controls = new THREE.OrbitControls(camera, container);
-  controls.damping = 0.2;
-  //controls.addEventListener('change', render);
-
   container.addEventListener('mousedown', onContainerDown, false);
-  container.addEventListener('mousemove', onContainerMove, false);
-  container.addEventListener('mouseup', onContainerUp, false);
+  document.addEventListener('mousemove', onContainerMove, false);
+  document.addEventListener('mouseup', onContainerUp, false);
 
   buttonStateChanged();
 
@@ -237,13 +228,7 @@ function animate() {
 
   if (state.playing) {
     var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04 * step);
-    var recenterMatrix = (new THREE.Matrix4()).setPosition(recenter);
-
-    if (middleMesh) {
-      middleMesh.matrix.multiplyMatrices(recenterMatrix, middleMesh.matrix);
-    }
-    outerMesh.matrix.multiplyMatrices(recenterMatrix, outerMesh.matrix);
-    innerMesh.matrix.multiplyMatrices(recenterMatrix, innerMesh.matrix);
+    applyGlobalMatrix((new THREE.Matrix4()).setPosition(recenter));
   }
 
   renderer.render(scene, camera);
@@ -265,31 +250,75 @@ function initAnimation() {
   //TODO
 }
 
+// rotate
+var isMouseDown = false
+var rotateSpeed = 2 * Math.PI;
+var rotateStart = new THREE.Vector2();
+var rotateEnd = new THREE.Vector2();
+var rotateDelta = new THREE.Vector2();
+
+// click
 var hasMoved = false;
+var raycaster = new THREE.Raycaster();
+var mouse = new THREE.Vector2();
+var tempMatrix4 = new THREE.Matrix4();
+var temp2Matrix4 = new THREE.Matrix4();
+
 function onContainerDown(event) {
-  hasMoved = false
+  event.preventDefault();
+
+  hasMoved = false;
+
+  isMouseDown = true;
+  rotateStart.set(event.clientX, event.clientY);
 }
 
 function onContainerMove(event) {
   hasMoved = true;
+
+  if (isMouseDown) {
+    event.preventDefault();
+
+    rotateEnd.set(event.clientX, event.clientY);
+  	rotateDelta.subVectors(rotateEnd, rotateStart);
+
+    var size = getSize();
+  	var euler = new THREE.Euler(rotateDelta.y / size.height * rotateSpeed,
+        rotateDelta.x / size.width * rotateSpeed);
+    applyGlobalMatrix((new THREE.Matrix4()).makeRotationFromEuler(euler));
+
+  	rotateStart.copy(rotateEnd);
+  }
 }
 
 function onContainerUp(event) {
-  if (hasMoved) {
-    return;
+  if (isMouseDown && !hasMoved) {
+    var size = getSize();
+    mouse.x = (event.clientX / size.width) * 2 - 1;
+    mouse.y = -((event.clientY - 64) / size.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    var outer = middleMesh || outerMesh
+    var intersects = raycaster.intersectObjects(outer.children);
+    if (intersects.length) {
+      tempMatrix4.multiplyMatrices(outer.matrix, intersects[0].object.matrix);
+      intersects[0].object.matrix.copyPosition(temp2Matrix4.multiplyMatrices(temp2Matrix4.getInverse(outer.matrix), innerMesh.matrix));
+      innerMesh.matrix.copyPosition(tempMatrix4);
+    }
   }
 
-  mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
-  mouse.y = -((event.clientY - 64) / renderer.domElement.clientHeight) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
+  isMouseDown = false;
+}
 
-  var outer = middleMesh || outerMesh
-  var intersects = raycaster.intersectObjects(outer.children);
-  if (intersects.length) {
-    tempMatrix4.multiplyMatrices(outer.matrix, intersects[0].object.matrix);
-    intersects[0].object.matrix.copyPosition(temp2Matrix4.multiplyMatrices(temp2Matrix4.getInverse(outer.matrix), innerMesh.matrix));
-    innerMesh.matrix.copyPosition(tempMatrix4);
-  }
+function applyGlobalMatrix(matrix) {
+  var rotation = (new THREE.Matrix4()).extractRotation(matrix);
+  scene.children.forEach(function (child) {
+    if (child instanceof THREE.DirectionalLight) {
+      child.position.applyMatrix4(rotation);
+    } else {
+      child.matrix.multiplyMatrices(matrix, child.matrix);
+    }
+  });
 }
 
 function compose(vectors, mesh) {
