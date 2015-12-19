@@ -15375,20 +15375,22 @@ function onContainerDown(event) {
 }
 
 function onContainerMove(event) {
-  hasMoved = true;
-
   if (isMouseDown) {
     event.preventDefault();
 
     rotateEnd.set(event.clientX, event.clientY);
-  	rotateDelta.subVectors(rotateEnd, rotateStart);
+    rotateDelta.subVectors(rotateEnd, rotateStart);
 
-    var size = getSize();
-  	var euler = new THREE.Euler(rotateDelta.y / size.height * rotateSpeed,
-        rotateDelta.x / size.width * rotateSpeed);
-    applyGlobalMatrix((new THREE.Matrix4()).makeRotationFromEuler(euler));
+    if (rotateDelta.x || rotateDelta.y) {
+      hasMoved = true;
 
-  	rotateStart.copy(rotateEnd);
+      var size = getSize();
+      var euler = new THREE.Euler(rotateDelta.y / size.height * rotateSpeed,
+          rotateDelta.x / size.width * rotateSpeed);
+      applyGlobalMatrix((new THREE.Matrix4()).makeRotationFromEuler(euler));
+
+      rotateStart.copy(rotateEnd);
+    }
   }
 }
 
