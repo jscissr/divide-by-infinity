@@ -19297,7 +19297,7 @@ var compositionSize = 7,
 var geometries = [
   new THREE.BoxGeometry(2, 2, 2),
   new THREE.IcosahedronGeometry(1.2, 2),
-  new THREE.TetrahedronGeometry(2)
+  new THREE.TetrahedronGeometry(Math.sqrt(3))
 ];
 var compositionFuncs = [
   composedCube,
@@ -19545,9 +19545,7 @@ function composedSphere(max, space) {
 
 function composedTetrahedron(max, space) {
   var composed = [];
-  var cubeSize = 1 / Math.sqrt(2);
-  var centerVector = new THREE.Vector3(cubeSize * max / 2,
-      cubeSize * max / 2, cubeSize * max / 2);
+  var centerVector = new THREE.Vector3(max / 2, max / 2, max / 2);
 
   for (var z = 0; z <= max; z++) {
     for (var a = 0; a <= max - z; a++) {
