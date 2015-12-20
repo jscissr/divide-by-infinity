@@ -20,7 +20,20 @@ canvas {
   }
 }
 div[drawer] {
-  padding: 16px;
+  padding: 0 16px;
+}
+div[drawer] p {
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+  -ms-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  -ms-flex-align: center;
+  -webkit-align-items: center;
+  align-items: center;
+  min-height: 48px;
+  margin: 0;
 }
 paper-toolbar .title {
   overflow: visible !important;
@@ -51,6 +64,7 @@ iron-dropdown.paper-menu-button {
 <link href="bower_components/paper-listbox/paper-listbox.html" rel="import">
 <link href="bower_components/paper-item/paper-item.html" rel="import">
 <link href="bower_components/paper-checkbox/paper-checkbox.html" rel="import">
+<link href="bower_components/paper-toggle-button/paper-toggle-button.html" rel="import">
 <body class="fullbleed layout vertical">
 <paper-header-panel mode="seamed" class="flex">
   <paper-toolbar>
@@ -61,10 +75,12 @@ iron-dropdown.paper-menu-button {
   </paper-toolbar>
   <paper-drawer-panel force-narrow disable-edge-swipe>
     <div drawer>
-      <paper-dropdown-menu label="Color">
-        <paper-listbox class="dropdown-content" selectable="paper-item" id="color-picker" />
-      </paper-dropdown-menu>
-      <paper-checkbox id="toggle-stats">Show stats</paper-checkbox>
+      <p>
+        <paper-dropdown-menu label="Color">
+          <paper-listbox class="dropdown-content" selectable="paper-item" id="color-picker" />
+        </paper-dropdown-menu>
+      <p><paper-toggle-button id="toggle-fog" checked>Fog / depth</paper-toggle-button>
+      <p><paper-checkbox id="toggle-stats">Show stats</paper-checkbox>
     </div>
     <div main>
       <div id="canvas-container"></div>
@@ -117,6 +133,11 @@ function initControls() {
 
   document.querySelector('#toggle-stats').addEventListener('change', function(event) {
     stats.domElement.style.display = event.target.checked ? 'block' : 'none';
+  });
+
+  var fogDensity = scene.fog.density;
+  document.querySelector('#toggle-fog').addEventListener('change', function(event) {
+    scene.fog.density = event.target.checked ? fogDensity : 0;
   });
 
   const colors = [
@@ -218,7 +239,7 @@ function onWindowResize() {
 }
 
 function initWebGL() {
-  camera = new THREE.PerspectiveCamera(60, undefined, 1, 1000);
+  camera = new THREE.PerspectiveCamera(60, undefined, 1, 3000);
   camera.position.z = 500;
 
   scene = new THREE.Scene();
