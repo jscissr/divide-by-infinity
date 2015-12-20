@@ -10,7 +10,6 @@ body {
   position: absolute;
   bottom: 24px;
   right: 24px;
-  background: #ff5252; /* paper-red-a200 */
 }
 canvas {
   display: block;
@@ -32,6 +31,11 @@ paper-toolbar .title {
   right: -80px;
   display: none;
 }
+iron-dropdown.paper-menu-button {
+  right: inherit!important;
+  left: inherit!important;
+  top: inherit!important;
+}
 </style>
 <script src="bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
 <link href="bower_components/paper-fab/paper-fab.html" rel="import">
@@ -43,6 +47,9 @@ paper-toolbar .title {
 <link href="bower_components/paper-header-panel/paper-header-panel.html" rel="import">
 <link href="bower_components/paper-drawer-panel/paper-drawer-panel.html" rel="import">
 <link href="bower_components/paper-styles/paper-styles.html" rel="import">
+<link href="bower_components/paper-dropdown-menu/paper-dropdown-menu.html" rel="import">
+<link href="bower_components/paper-listbox/paper-listbox.html" rel="import">
+<link href="bower_components/paper-item/paper-item.html" rel="import">
 <link href="bower_components/paper-checkbox/paper-checkbox.html" rel="import">
 <body class="fullbleed layout vertical">
 <paper-header-panel mode="seamed" class="flex">
@@ -54,6 +61,9 @@ paper-toolbar .title {
   </paper-toolbar>
   <paper-drawer-panel force-narrow disable-edge-swipe>
     <div drawer>
+      <paper-dropdown-menu label="Color">
+        <paper-listbox class="dropdown-content" selectable="paper-item" id="color-picker" />
+      </paper-dropdown-menu>
       <paper-checkbox id="toggle-stats">Show stats</paper-checkbox>
     </div>
     <div main>
@@ -83,6 +93,7 @@ var state = {
 };
 
 var camera, scene, renderer, stats;
+var colorLights = [];
 
 function init() {
   initWebGL();
@@ -107,6 +118,56 @@ function initControls() {
   document.querySelector('#toggle-stats').addEventListener('change', function(event) {
     stats.domElement.style.display = event.target.checked ? 'block' : 'none';
   });
+
+  const colors = [
+    {
+      label: 'indigo & red',
+      primary: '#3f51b5',
+      accent: '#f44336'
+    },
+    {
+      label: 'green & deep orange',
+      primary: '#4caf50',
+      accent: '#ff5722'
+    },
+    {
+      label: 'teal & pink',
+      primary: '#009688',
+      accent: '#ff4081'
+    },
+    {
+      label: 'amber & light blue',
+      primary: '#ffc107',
+      accent: '#03a9f4'
+    },
+    {
+      label: 'brown & lime',
+      primary: '#795548',
+      accent: '#cddc39'
+    },
+    {
+      label: 'deep orange & blue grey',
+      primary: '#ff5722',
+      accent: '#607d8b'
+    },
+  ];
+
+  var colorSelect = document.querySelector('#color-picker');
+  colors.forEach(function (color) {
+    var item = document.createElement('paper-item');
+    item.innerText = color.label;
+    Polymer.dom(colorSelect).appendChild(item);
+  });
+  colorSelect.addEventListener('iron-select', function () {
+    var color = colors[colorSelect.selected];
+
+    document.querySelector('paper-toolbar').style.background = color.primary;
+    document.querySelector('paper-fab').style.background = color.accent;
+
+    colorLights[0].color = new THREE.Color(color.primary);
+    colorLights[1].color = new THREE.Color(color.accent);
+  });
+  colorSelect.selected = 0;
 
   var stateButtons = {};
 
@@ -172,10 +233,12 @@ function initWebGL() {
   light = new THREE.DirectionalLight(0x002288);
   light.position.set(-1, -1, -1);
   scene.add(light);
+  colorLights.push(light);
 
   light = new THREE.DirectionalLight(0xaa2222);
   light.position.set(0, 0.5, 1);
   scene.add(light);
+  colorLights.push(light);
 
   light = new THREE.AmbientLight(0x222222);
   scene.add(light);
