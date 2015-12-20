@@ -22,7 +22,7 @@ canvas {
 div[drawer] {
   padding: 0 16px;
 }
-div[drawer] p {
+div[drawer] > div {
   display: -ms-flexbox;
   display: -webkit-flex;
   display: flex;
@@ -65,6 +65,7 @@ iron-dropdown.paper-menu-button {
 <link href="bower_components/paper-item/paper-item.html" rel="import">
 <link href="bower_components/paper-checkbox/paper-checkbox.html" rel="import">
 <link href="bower_components/paper-toggle-button/paper-toggle-button.html" rel="import">
+<link href="bower_components/paper-slider/paper-slider.html" rel="import">
 <body class="fullbleed layout vertical">
 <paper-header-panel mode="seamed" class="flex">
   <paper-toolbar>
@@ -75,12 +76,14 @@ iron-dropdown.paper-menu-button {
   </paper-toolbar>
   <paper-drawer-panel force-narrow disable-edge-swipe>
     <div drawer>
-      <p>
+      <div>
         <paper-dropdown-menu label="Color">
           <paper-listbox class="dropdown-content" selectable="paper-item" id="color-picker" />
         </paper-dropdown-menu>
-      <p><paper-toggle-button id="toggle-fog" checked>Fog / depth</paper-toggle-button>
-      <p><paper-checkbox id="toggle-stats">Show stats</paper-checkbox>
+      </div>
+      <div><paper-toggle-button id="toggle-fog" checked>Fog / depth</paper-toggle-button></div>
+      <div>Speed <paper-slider id="speed-slider" min="0" max="100" step="0.5" /></div>
+      <div><paper-checkbox id="toggle-stats">Show stats</paper-checkbox></div>
     </div>
     <div main>
       <div id="canvas-container"></div>
@@ -103,7 +106,6 @@ Phases of animation:
 (function() {
 
 var state = {
-  playing: true,
   rotate: false,
   flash: false,
 };
@@ -190,27 +192,53 @@ function initControls() {
   });
   colorSelect.selected = 0;
 
+  var sliderSpeed = 30;
+  var previousSpeed = sliderSpeed;
+  var speedSlider = document.querySelector('#speed-slider');
+  function speedSliderChange(event) {
+    if (event.target.value) {
+      previousSpeed = event.target.value;
+    }
+    sliderSpeed = event.target.immediateValue;
+    buttonStateChanged();
+  }
+  speedSlider.addEventListener('change', speedSliderChange);
+  speedSlider.addEventListener('immediate-value-change', speedSliderChange);
+
   var stateButtons = {};
 
   function buttonStateChanged() {
-    stateButtons.playing.icon = state.playing ? 'av:pause' : 'av:play-arrow';
+    step = (state.flash ? 3 : 1) * sliderSpeed / 60;
+    if (speedSlider.immediateValue !== sliderSpeed) {
+      speedSlider.value = sliderSpeed;
+    }
+    stateButtons.playing.icon = step ? 'av:pause' : 'av:play-arrow';
     stateButtons.flash.style.color = state.flash ? '#ffff00' : 'white';
     stateButtons.rotate.style.color = state.rotate ? '#ffff00' : 'white';
-    step = !state.playing ? 0 : state.flash ? 2 : 0.5;
   }
 
-  function toggleButton(selector, name) {
+  function toggleButton(selector, name, func) {
     var button = document.querySelector(selector);
     stateButtons[name] = button;
     button.addEventListener('click', function() {
-      state[name] = !state[name];
+      if (func) {
+        func();
+      } else {
+        state[name] = !state[name];
+      }
       buttonStateChanged();
     });
   }
 
-  toggleButton('#play-pause', 'playing');
   toggleButton('#rotate', 'rotate');
   toggleButton('#flash', 'flash');
+  toggleButton('#play-pause', 'playing', function () {
+    if (sliderSpeed) {
+      sliderSpeed = 0;
+    } else {
+      sliderSpeed = previousSpeed;
+    }
+  });
 
   buttonStateChanged();
 
@@ -308,11 +336,13 @@ function animate() {
   requestAnimationFrame(animate);
   stats.begin();
 
+  var delta = position - lastPosition;
+
   if (state.rotate) {
-    applyGlobalMatrix((new THREE.Matrix4()).makeRotationZ(-Math.PI / 256 * step));
+    applyGlobalMatrix((new THREE.Matrix4()).makeRotationZ(-Math.PI / 256 * delta));
   }
 
-  if (state.flash && state.playing) {
+  if (state.flash && delta) {
     camera.lookAt(sphereRandom().multiplyScalar(5));
   } else {
     camera.lookAt(new THREE.Vector3(0, 0, 0));
@@ -336,7 +366,7 @@ function animate() {
   innerMesh.matrix.multiplyScalar(scaleFactor);
   innerMesh.matrix.elements[15] = 1;
 
-  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04 * Math.abs(position - lastPosition));
+  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04 * Math.abs(delta));
   applyGlobalMatrix((new THREE.Matrix4()).setPosition(recenter));
 
   renderer.render(scene, camera);

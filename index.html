@@ -37,7 +37,7 @@ canvas {
 div[drawer] {
   padding: 0 16px;
 }
-div[drawer] p {
+div[drawer] > div {
   display: -ms-flexbox;
   display: -webkit-flex;
   display: flex;
@@ -14082,6 +14082,110 @@ context. You should place this element as a child of `<body>` whenever possible.
 
 
 
+<script>
+
+ /**
+ * `iron-range-behavior` provides the behavior for something with a minimum to maximum range.
+ *
+ * @demo demo/index.html
+ * @polymerBehavior
+ */
+ Polymer.IronRangeBehavior = {
+
+  properties: {
+
+    /**
+     * The number that represents the current value.
+     */
+    value: {
+      type: Number,
+      value: 0,
+      notify: true,
+      reflectToAttribute: true
+    },
+
+    /**
+     * The number that indicates the minimum value of the range.
+     */
+    min: {
+      type: Number,
+      value: 0,
+      notify: true
+    },
+
+    /**
+     * The number that indicates the maximum value of the range.
+     */
+    max: {
+      type: Number,
+      value: 100,
+      notify: true
+    },
+
+    /**
+     * Specifies the value granularity of the range's value.
+     */
+    step: {
+      type: Number,
+      value: 1,
+      notify: true
+    },
+
+    /**
+     * Returns the ratio of the value.
+     */
+    ratio: {
+      type: Number,
+      value: 0,
+      readOnly: true,
+      notify: true
+    },
+  },
+
+  observers: [
+    '_update(value, min, max, step)'
+  ],
+
+  _calcRatio: function(value) {
+    return (this._clampValue(value) - this.min) / (this.max - this.min);
+  },
+
+  _clampValue: function(value) {
+    return Math.min(this.max, Math.max(this.min, this._calcStep(value)));
+  },
+
+  _calcStep: function(value) {
+   /**
+    * if we calculate the step using
+    * `Math.round(value / step) * step` we may hit a precision point issue
+    * eg. 0.1 * 0.2 =  0.020000000000000004
+    * http://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html
+    *
+    * as a work around we can divide by the reciprocal of `step`
+    */
+    // polymer/issues/2493
+    value = parseFloat(value);
+    return this.step ? (Math.round((value + this.min) / this.step) -
+        (this.min / this.step)) / (1 / this.step) : value;
+  },
+
+  _validateValue: function() {
+    var v = this._clampValue(this.value);
+    this.value = this.oldValue = isNaN(v) ? this.oldValue : v;
+    return this.value !== v;
+  },
+
+  _update: function() {
+    this._validateValue();
+    this._setRatio(this._calcRatio(this.value) * 100);
+  }
+
+};
+</script>
+
+
+
+
 </head><body class="fullbleed layout vertical"><div hidden="" by-vulcanize=""><dom-module id="iron-icon" assetpath="bower_components/iron-icon/">
 
   <style>
@@ -19299,6 +19403,938 @@ context. You should place this element as a child of `<body>` whenever possible.
     });
   </script>
 </dom-module>
+<dom-module id="paper-progress" assetpath="bower_components/paper-progress/">
+  <style>
+    :host {
+      display: block;
+      width: 200px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #progressContainer {
+      position: relative;
+    }
+
+    #progressContainer,
+    /* the stripe for the indeterminate animation*/
+    .indeterminate:after {
+      height: var(--paper-progress-height, 4px);
+    }
+
+    #primaryProgress,
+    #secondaryProgress,
+    .indeterminate:after {
+      @apply(--layout-fit);
+    }
+
+    #progressContainer,
+    .indeterminate:after {
+      background-color: var(--paper-progress-container-color, --google-grey-300);
+    }
+
+    :host(.transiting) #primaryProgress,
+    :host(.transiting) #secondaryProgress {
+      -webkit-transition-property: -webkit-transform;
+      transition-property: transform;
+
+      /* Duration */
+      -webkit-transition-duration: var(--paper-progress-transition-duration, 0.08s);
+      transition-duration: var(--paper-progress-transition-duration, 0.08s);
+
+      /* Timing function */
+      -webkit-transition-timing-function: var(--paper-progress-transition-timing-function, ease);
+      transition-timing-function: var(--paper-progress-transition-timing-function, ease);
+
+      /* Delay */
+      -webkit-transition-delay: var(--paper-progress-transition-delay, 0s);
+      transition-delay: var(--paper-progress-transition-delay, 0s);
+    }
+
+    #primaryProgress,
+    #secondaryProgress {
+      @apply(--layout-fit);
+      -webkit-transform-origin: left center;
+      transform-origin: left center;
+      -webkit-transform: scaleX(0);
+      transform: scaleX(0);
+      will-change: transform;
+    }
+
+    #primaryProgress {
+      background-color: var(--paper-progress-active-color, --google-green-500);
+    }
+
+    #secondaryProgress {
+      position: relative;
+      background-color: var(--paper-progress-secondary-color, --google-green-100);
+    }
+
+    :host([disabled]) #primaryProgress {
+      background-color: var(--paper-progress-disabled-active-color, --google-grey-500);
+    }
+
+    :host([disabled]) #secondaryProgress {
+      background-color: var(--paper-progress-disabled-active-color, --google-grey-300);
+    }
+
+    :host(:not([disabled])) #primaryProgress.indeterminate {
+      -webkit-transform-origin: right center;
+      transform-origin: right center;
+      -webkit-animation: indeterminate-bar 2s linear infinite;
+      animation: indeterminate-bar 2s linear infinite;
+    }
+
+    :host(:not([disabled])) #primaryProgress.indeterminate:after {
+      content: "";
+      -webkit-transform-origin: center center;
+      transform-origin: center center;
+
+      -webkit-animation: indeterminate-splitter 2s linear infinite;
+      animation: indeterminate-splitter 2s linear infinite;
+    }
+
+    @-webkit-keyframes indeterminate-bar {
+      0% {
+        -webkit-transform: scaleX(1) translateX(-100%);
+      }
+      50% {
+        -webkit-transform: scaleX(1) translateX(0%);
+      }
+      75% {
+        -webkit-transform: scaleX(1) translateX(0%);
+        -webkit-animation-timing-function: cubic-bezier(.28,.62,.37,.91);
+      }
+      100% {
+        -webkit-transform: scaleX(0) translateX(0%);
+      }
+    }
+
+    @-webkit-keyframes indeterminate-splitter {
+      0% {
+        -webkit-transform: scaleX(.75) translateX(-125%);
+      }
+      30% {
+        -webkit-transform: scaleX(.75) translateX(-125%);
+        -webkit-animation-timing-function: cubic-bezier(.42,0,.6,.8);
+      }
+      90% {
+        -webkit-transform: scaleX(.75) translateX(125%);
+      }
+      100% {
+        -webkit-transform: scaleX(.75) translateX(125%);
+      }
+    }
+
+    @keyframes indeterminate-bar {
+      0% {
+        transform: scaleX(1) translateX(-100%);
+      }
+      50% {
+        transform: scaleX(1) translateX(0%);
+      }
+      75% {
+        transform: scaleX(1) translateX(0%);
+        animation-timing-function: cubic-bezier(.28,.62,.37,.91);
+      }
+      100% {
+        transform: scaleX(0) translateX(0%);
+      }
+    }
+
+    @keyframes indeterminate-splitter {
+      0% {
+        transform: scaleX(.75) translateX(-125%);
+      }
+      30% {
+        transform: scaleX(.75) translateX(-125%);
+        animation-timing-function: cubic-bezier(.42,0,.6,.8);
+      }
+      90% {
+        transform: scaleX(.75) translateX(125%);
+      }
+      100% {
+        transform: scaleX(.75) translateX(125%);
+      }
+    }
+  </style>
+  <template>
+    <div id="progressContainer">
+      <div id="secondaryProgress" hidden$="[[_hideSecondaryProgress(secondaryRatio)]]"></div>
+      <div id="primaryProgress"></div>
+    </div>
+  </template>
+</dom-module>
+
+<script>
+  Polymer({
+
+    is: 'paper-progress',
+
+    behaviors: [
+      Polymer.IronRangeBehavior
+    ],
+
+    properties: {
+
+      /**
+       * The number that represents the current secondary progress.
+       */
+      secondaryProgress: {
+        type: Number,
+        value: 0
+      },
+
+      /**
+       * The secondary ratio
+       */
+      secondaryRatio: {
+        type: Number,
+        value: 0,
+        readOnly: true
+      },
+
+      /**
+       * Use an indeterminate progress indicator.
+       */
+      indeterminate: {
+        type: Boolean,
+        value: false,
+        observer: '_toggleIndeterminate'
+      },
+
+      /**
+       * True if the progress is disabled.
+       */
+      disabled: {
+        type: Boolean,
+        value: false,
+        reflectToAttribute: true,
+        observer: '_disabledChanged'
+      }
+    },
+
+    observers: [
+      '_progressChanged(secondaryProgress, value, min, max)'
+    ],
+
+    hostAttributes: {
+      role: 'progressbar'
+    },
+
+    _toggleIndeterminate: function(indeterminate) {
+      // If we use attribute/class binding, the animation sometimes doesn't translate properly
+      // on Safari 7.1. So instead, we toggle the class here in the update method.
+      this.toggleClass('indeterminate', indeterminate, this.$.primaryProgress);
+    },
+
+    _transformProgress: function(progress, ratio) {
+      var transform = 'scaleX(' + (ratio / 100) + ')';
+      progress.style.transform = progress.style.webkitTransform = transform;
+    },
+
+    _mainRatioChanged: function(ratio) {
+      this._transformProgress(this.$.primaryProgress, ratio);
+    },
+
+    _progressChanged: function(secondaryProgress, value, min, max) {
+      secondaryProgress = this._clampValue(secondaryProgress);
+      value = this._clampValue(value);
+
+      var secondaryRatio = this._calcRatio(secondaryProgress) * 100;
+      var mainRatio = this._calcRatio(value) * 100;
+
+      this._setSecondaryRatio(secondaryRatio);
+      this._transformProgress(this.$.secondaryProgress, secondaryRatio);
+      this._transformProgress(this.$.primaryProgress, mainRatio);
+
+      this.secondaryProgress = secondaryProgress;
+
+      this.setAttribute('aria-valuenow', value);
+      this.setAttribute('aria-valuemin', min);
+      this.setAttribute('aria-valuemax', max);
+    },
+
+    _disabledChanged: function(disabled) {
+      this.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    },
+
+    _hideSecondaryProgress: function(secondaryRatio) {
+      return secondaryRatio === 0;
+    }
+
+  });
+
+</script>
+<dom-module id="paper-slider" assetpath="bower_components/paper-slider/">
+  <template strip-whitespace="">
+    <style>
+      :host {
+        @apply(--layout);
+        @apply(--layout-justified);
+        @apply(--layout-center);
+        width: 200px;
+        cursor: default;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        --paper-progress-active-color: var(--paper-slider-active-color, --google-blue-700);
+        --paper-progress-secondary-color: var(--paper-slider-secondary-color, --google-blue-300);
+        --paper-progress-disabled-active-color: var(--paper-slider-disabled-active-color, --google-grey-500);
+        --paper-progress-disabled-secondary-color: var(--paper-slider-disabled-secondary-color, --google-grey-300);
+      }
+
+      /* focus shows the ripple */
+      :host(:focus) {
+        outline: none;
+      }
+
+      #sliderContainer {
+        position: relative;
+        width: 100%;
+        height: calc(30px + var(--paper-slider-height, 2px));
+        margin-left: calc(15px + var(--paper-slider-height, 2px)/2);
+        margin-right: calc(15px + var(--paper-slider-height, 2px)/2);
+      }
+
+      #sliderContainer:focus {
+        outline: 0;
+      }
+
+      #sliderContainer.editable {
+        margin-top: 12px;
+        margin-bottom: 12px;
+      }
+
+      .bar-container {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        overflow: hidden;
+      }
+
+      .ring > .bar-container {
+        left: calc(5px + var(--paper-slider-height, 2px)/2);
+        transition: left 0.18s ease, width 0.18s ease;
+      }
+
+      .ring.expand.dragging > .bar-container {
+        transition: none;
+      }
+
+      .ring.expand:not(.pin) > .bar-container {
+        left: calc(15px + var(--paper-slider-height, 2px)/2);
+      }
+
+      #sliderBar {
+        padding: 15px 0;
+        width: 100%;
+        background-color: var(--paper-slider-bar-color, transparent);
+        --paper-progress-height: var(--paper-slider-height, 2px);
+      }
+
+      .ring #sliderBar {
+        margin-left: calc(-5px - var(--paper-slider-height, 2px)/2);
+        width: calc(100% + 5px + var(--paper-slider-height, 2px)/2);
+      }
+      .ring.expand:not(.pin) #sliderBar {
+        margin-left: calc(-15px - var(--paper-slider-height, 2px)/2);
+        width: calc(100% + 15px + var(--paper-slider-height, 2px)/2);
+      }
+
+      .slider-markers {
+        position: absolute;
+        top: calc(14px + var(--paper-slider-height,2px)/2);
+        height: var(--paper-slider-height, 2px);
+        left: 0;
+        right: -1px;
+        box-sizing: border-box;
+        pointer-events: none;
+        @apply(--layout-horizontal);
+      }
+
+      .slider-marker {
+        @apply(--layout-flex);
+      }
+      .slider-markers::after,
+      .slider-marker::after {
+        content: "";
+        display: block;
+        margin-left: -1px;
+        width: 2px;
+        height: 2px;
+        border-radius: 50%;
+        background-color: black;
+      }
+
+      #sliderKnob {
+        position: absolute;
+        left: 0;
+        top: 0;
+        margin-left: calc(-15px - var(--paper-slider-height, 2px)/2);
+        width: calc(30px + var(--paper-slider-height, 2px));
+        height: calc(30px + var(--paper-slider-height, 2px));
+      }
+
+      .transiting > #sliderKnob {
+        transition: left 0.08s ease;
+      }
+
+      #sliderKnob:focus {
+        outline: none;
+      }
+
+      #sliderKnob.dragging {
+        transition: none;
+      }
+
+      .snaps > #sliderKnob.dragging {
+        transition: -webkit-transform 0.08s ease;
+        transition: transform 0.08s ease;
+      }
+
+      #sliderKnobInner {
+        margin: 10px;
+        width: calc(100% - 20px);
+        height: calc(100% - 20px);
+        border-radius: 50%;
+        background-color: var(--paper-slider-knob-color, --google-blue-700);
+
+        -moz-box-sizing: border-box;
+        box-sizing: border-box;
+
+        transition-property: margin, height, width, background-color, border;
+        transition-duration: 0.1s;
+        transition-timing-function: ease;
+      }
+
+      .expand:not(.pin) > #sliderKnob > #sliderKnobInner {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+      }
+
+      .ring > #sliderKnob > #sliderKnobInner {
+        background-color: var(--paper-slider-knob-start-color, transparent);
+        border: 2px solid var(--paper-slider-knob-start-border-color, #c8c8c8);
+      }
+
+      #sliderKnobInner::before {
+        background-color: var(--paper-slider-pin-color, --google-blue-700);
+      }
+
+      .pin > #sliderKnob > #sliderKnobInner::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 50%;
+        margin-left: -13px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50% 50% 50% 0;
+
+        -webkit-transform: rotate(-45deg) scale(0) translate(0);
+        transform: rotate(-45deg) scale(0) translate(0);
+      }
+
+      #sliderKnobInner::before,
+      #sliderKnobInner::after {
+        transition: -webkit-transform .2s ease, background-color .18s ease;
+        transition: transform .2s ease, background-color .18s ease;
+      }
+
+      .pin.ring > #sliderKnob > #sliderKnobInner::before {
+        background-color: var(--paper-slider-pin-start-color, #c8c8c8);
+      }
+
+      .pin.expand > #sliderKnob > #sliderKnobInner::before {
+        -webkit-transform: rotate(-45deg) scale(1) translate(17px, -17px);
+        transform: rotate(-45deg) scale(1) translate(17px, -17px);
+      }
+
+      .pin > #sliderKnob > #sliderKnobInner::after {
+        content: attr(value);
+        position: absolute;
+        top: 0;
+        left: 50%;
+        margin-left: -16px;
+        width: 32px;
+        height: 26px;
+        text-align: center;
+        color: var(--paper-slider-font-color, #fff);
+        font-size: 10px;
+
+        -webkit-transform: scale(0) translate(0);
+        transform: scale(0) translate(0);
+      }
+
+      .pin.expand > #sliderKnob > #sliderKnobInner::after {
+        -webkit-transform: scale(1) translate(0, -17px);
+        transform: scale(1) translate(0, -17px);
+      }
+
+      /* paper-input */
+      .slider-input {
+        width: 50px;
+        overflow: hidden;
+        --paper-input-container-input: {
+          text-align: center;
+        };
+      }
+
+      /* disabled state */
+      #sliderContainer.disabled {
+        pointer-events: none;
+      }
+
+      .disabled > #sliderKnob {
+        top: 2px;
+        margin-left: calc(-13px - var(--paper-slider-height, 2px)/2);
+        width: calc(26px + var(--paper-slider-height, 2px));
+        height: calc(26px + var(--paper-slider-height, 2px));
+      }
+
+      .disabled > #sliderKnob > #sliderKnobInner {
+        background-color: var(--paper-slider-disabled-knob-color, --google-grey-500);
+      }
+
+      .disabled.ring > #sliderKnob > #sliderKnobInner {
+        background-color: transparent;
+      }
+
+      paper-ripple {
+        color: var(--paper-slider-knob-color, --google-blue-700);
+      }
+
+    </style>
+    <div id="sliderContainer" class$="[[_getClassNames(disabled, pin, snaps, immediateValue, min, expand, dragging, transiting, editable)]]">
+
+      <div class="bar-container">
+        <paper-progress disabled$="[[disabled]]" id="sliderBar" aria-hidden="true" min="[[min]]" max="[[max]]" step="[[step]]" value="[[immediateValue]]" secondary-progress="[[secondaryProgress]]" on-down="_bardown" on-up="_resetKnob" on-track="_onTrack">
+        </paper-progress>
+      </div>
+
+      <template is="dom-if" if="[[snaps]]">
+        <div class="slider-markers">
+          <template is="dom-repeat" items="[[markers]]">
+            <div class="slider-marker"></div>
+          </template>
+        </div>
+      </template>
+
+      <div id="sliderKnob" on-down="_knobdown" on-up="_resetKnob" on-track="_onTrack" on-transitionend="_knobTransitionEnd">
+          <div id="sliderKnobInner" value$="[[immediateValue]]"></div>
+      </div>
+    </div>
+    <template is="dom-if" if="[[editable]]">
+      <paper-input id="input" type="number" step="[[step]]" min="[[min]]" max="[[max]]" class="slider-input" disabled$="[[disabled]]" value="[[immediateValue]]" on-change="_changeValue" on-keydown="_inputKeyDown" no-label-float="">
+      </paper-input>
+    </template>
+  </template>
+</dom-module>
+
+<script>
+
+  Polymer({
+    is: 'paper-slider',
+
+    behaviors: [
+      Polymer.IronFormElementBehavior,
+      Polymer.PaperInkyFocusBehavior,
+      Polymer.IronRangeBehavior
+    ],
+
+    properties: {
+
+      /**
+       * If true, the slider thumb snaps to tick marks evenly spaced based
+       * on the `step` property value.
+       */
+      snaps: {
+        type: Boolean,
+        value: false,
+        notify: true
+      },
+
+      /**
+       * If true, a pin with numeric value label is shown when the slider thumb
+       * is pressed. Use for settings for which users need to know the exact
+       * value of the setting.
+       */
+      pin: {
+        type: Boolean,
+        value: false,
+        notify: true
+      },
+
+      /**
+       * The number that represents the current secondary progress.
+       */
+      secondaryProgress: {
+        type: Number,
+        value: 0,
+        notify: true,
+        observer: '_secondaryProgressChanged'
+      },
+
+      /**
+       * If true, an input is shown and user can use it to set the slider value.
+       */
+      editable: {
+        type: Boolean,
+        value: false
+      },
+
+      /**
+       * The immediate value of the slider.  This value is updated while the user
+       * is dragging the slider.
+       */
+      immediateValue: {
+        type: Number,
+        value: 0,
+        readOnly: true,
+        notify: true
+      },
+
+      /**
+       * The maximum number of markers
+       */
+      maxMarkers: {
+        type: Number,
+        value: 0,
+        notify: true,
+        observer: '_maxMarkersChanged'
+      },
+
+      /**
+       * If true, the knob is expanded
+       */
+      expand: {
+        type: Boolean,
+        value: false,
+        readOnly: true
+      },
+
+      /**
+       * True when the user is dragging the slider.
+       */
+      dragging: {
+        type: Boolean,
+        value: false,
+        readOnly: true
+      },
+
+      transiting: {
+        type: Boolean,
+        value: false,
+        readOnly: true
+      },
+
+      markers: {
+        type: Array,
+        readOnly: true,
+        value: []
+      },
+    },
+
+    observers: [
+      '_updateKnob(value, min, max, snaps, step)',
+      '_valueChanged(value)',
+      '_immediateValueChanged(immediateValue)'
+    ],
+
+    hostAttributes: {
+      role: 'slider',
+      tabindex: 0
+    },
+
+    keyBindings: {
+      'left down pagedown home': '_decrementKey',
+      'right up pageup end': '_incrementKey'
+    },
+
+    ready: function() {
+      // issue polymer/polymer#1305
+      this.async(function() {
+        this._updateKnob(this.value);
+      }, 1);
+    },
+
+    /**
+     * Increases value by `step` but not above `max`.
+     * @method increment
+     */
+    increment: function() {
+      this.value = this._clampValue(this.value + this.step);
+    },
+
+    /**
+     * Decreases value by `step` but not below `min`.
+     * @method decrement
+     */
+    decrement: function() {
+      this.value = this._clampValue(this.value - this.step);
+    },
+
+    _updateKnob: function(value, min, max, snaps, step) {
+      this.setAttribute('aria-valuemin', min);
+      this.setAttribute('aria-valuemax', max);
+      this.setAttribute('aria-valuenow', value);
+
+      this._positionKnob(this._calcRatio(value));
+    },
+
+    _valueChanged: function() {
+      this.fire('value-change');
+    },
+
+    _immediateValueChanged: function() {
+      if (this.dragging) {
+        this.fire('immediate-value-change');
+      } else {
+        this.value = this.immediateValue;
+      }
+    },
+
+    _secondaryProgressChanged: function() {
+      this.secondaryProgress = this._clampValue(this.secondaryProgress);
+    },
+
+    _expandKnob: function() {
+      this._setExpand(true);
+    },
+
+    _resetKnob: function() {
+      this.cancelDebouncer('expandKnob');
+      this._setExpand(false);
+    },
+
+    _positionKnob: function(ratio) {
+      this._setImmediateValue(this._calcStep(this._calcKnobPosition(ratio)));
+      this._setRatio(this._calcRatio(this.immediateValue));
+
+      this.$.sliderKnob.style.left = (this.ratio * 100) + '%';
+    },
+
+    _calcKnobPosition: function(ratio) {
+      return (this.max - this.min) * ratio + this.min;
+    },
+
+    _onTrack: function(event) {
+      event.stopPropagation();
+      switch (event.detail.state) {
+        case 'start':
+          this._trackStart(event);
+          break;
+        case 'track':
+          this._trackX(event);
+          break;
+        case 'end':
+          this._trackEnd();
+          break;
+      }
+    },
+
+    _trackStart: function(event) {
+      this._w = this.$.sliderBar.offsetWidth;
+      this._x = this.ratio * this._w;
+      this._startx = this._x || 0;
+      this._minx = - this._startx;
+      this._maxx = this._w - this._startx;
+      this.$.sliderKnob.classList.add('dragging');
+      this._setDragging(true);
+    },
+
+    _trackX: function(e) {
+      if (!this.dragging) {
+        this._trackStart(e);
+      }
+
+      var dx = Math.min(this._maxx, Math.max(this._minx, e.detail.dx));
+      this._x = this._startx + dx;
+
+      var immediateValue = this._calcStep(this._calcKnobPosition(this._x / this._w));
+      this._setImmediateValue(immediateValue);
+
+      // update knob's position
+      var translateX = ((this._calcRatio(immediateValue) * this._w) - this._startx);
+      this.translate3d(translateX + 'px', 0, 0, this.$.sliderKnob);
+    },
+
+    _trackEnd: function() {
+      var s = this.$.sliderKnob.style;
+
+      this.$.sliderKnob.classList.remove('dragging');
+      this._setDragging(false);
+      this._resetKnob();
+      this.value = this.immediateValue;
+
+      s.transform = s.webkitTransform = '';
+
+      this.fire('change');
+    },
+
+    _knobdown: function(event) {
+      this._expandKnob();
+
+      // cancel selection
+      event.preventDefault();
+
+      // set the focus manually because we will called prevent default
+      this.focus();
+    },
+
+    _bardown: function(event) {
+      this._w = this.$.sliderBar.offsetWidth;
+      var rect = this.$.sliderBar.getBoundingClientRect();
+      var ratio = (event.detail.x - rect.left) / this._w;
+      var prevRatio = this.ratio;
+
+      this._setTransiting(true);
+
+      this._positionKnob(ratio);
+
+      this.debounce('expandKnob', this._expandKnob, 60);
+
+      // if the ratio doesn't change, sliderKnob's animation won't start
+      // and `_knobTransitionEnd` won't be called
+      // Therefore, we need to manually update the `transiting` state
+
+      if (prevRatio === this.ratio) {
+        this._setTransiting(false);
+      }
+
+      this.async(function() {
+        this.fire('change');
+      });
+
+      // cancel selection
+      event.preventDefault();
+    },
+
+    _knobTransitionEnd: function(event) {
+      if (event.target === this.$.sliderKnob) {
+        this._setTransiting(false);
+      }
+    },
+
+    _maxMarkersChanged: function(maxMarkers) {
+      if (!this.snaps) {
+        this._setMarkers([]);
+      }
+      var steps = Math.floor((this.max - this.min) / this.step);
+      if (steps > maxMarkers) {
+        steps = maxMarkers;
+      }
+      this._setMarkers(new Array(steps));
+    },
+
+    _mergeClasses: function(classes) {
+      return Object.keys(classes).filter(
+        function(className) {
+          return classes[className];
+        }).join(' ');
+    },
+
+    _getClassNames: function() {
+      return this._mergeClasses({
+        disabled: this.disabled,
+        pin: this.pin,
+        snaps: this.snaps,
+        ring: this.immediateValue <= this.min,
+        expand: this.expand,
+        dragging: this.dragging,
+        transiting: this.transiting,
+        editable: this.editable
+      });
+    },
+
+    _incrementKey: function(event) {
+      if (!this.disabled) {
+        if (event.detail.key === 'end') {
+          this.value = this.max;
+        } else {
+          this.increment();
+        }
+        this.fire('change');
+      }
+    },
+
+    _decrementKey: function(event) {
+      if (!this.disabled) {
+        if (event.detail.key === 'home') {
+          this.value = this.min;
+        } else {
+          this.decrement();
+        }
+        this.fire('change');
+      }
+    },
+
+    _changeValue: function(event) {
+      this.value = event.target.value;
+      this.fire('change');
+    },
+
+    _inputKeyDown: function(event) {
+      event.stopPropagation();
+    },
+
+    // create the element ripple inside the `sliderKnob`
+    _createRipple: function() {
+      this._rippleContainer = this.$.sliderKnob;
+      return Polymer.PaperInkyFocusBehaviorImpl._createRipple.call(this);
+    },
+
+    // Hide the ripple when user is not interacting with keyboard.
+    // This behavior is different from other ripple-y controls, but is
+    // according to spec: https://www.google.com/design/spec/components/sliders.html
+    _focusedChanged: function(receivedFocusFromKeyboard) {
+      if (receivedFocusFromKeyboard) {
+        this.ensureRipple();
+      }
+      if (this.hasRipple()) {
+        // note, ripple must be un-hidden prior to setting `holdDown`
+        if (receivedFocusFromKeyboard) {
+          this._ripple.removeAttribute('hidden');
+        } else {
+          this._ripple.setAttribute('hidden', '');
+        }
+        this._ripple.holdDown = receivedFocusFromKeyboard;
+      }
+    }
+
+  });
+
+  /**
+   * Fired when the slider's value changes.
+   *
+   * @event value-change
+   */
+
+  /**
+   * Fired when the slider's immediateValue changes.
+   *
+   * @event immediate-value-change
+   */
+
+  /**
+   * Fired when the slider's value changes due to user interaction.
+   *
+   * Changes to the slider's value due to changes in an underlying
+   * bound variable will not trigger this event.
+   *
+   * @event change
+   */
+
+</script>
 </div>
 <paper-header-panel mode="seamed" class="flex">
   <paper-toolbar>
@@ -19309,13 +20345,15 @@ context. You should place this element as a child of `<body>` whenever possible.
   </paper-toolbar>
   <paper-drawer-panel force-narrow="" disable-edge-swipe="">
     <div drawer="">
-      <p>
+      <div>
         <paper-dropdown-menu label="Color">
           <paper-listbox class="dropdown-content" selectable="paper-item" id="color-picker">
         </paper-listbox></paper-dropdown-menu>
-      </p><p><paper-toggle-button id="toggle-fog" checked="">Fog / depth</paper-toggle-button>
-      </p><p><paper-checkbox id="toggle-stats">Show stats</paper-checkbox>
-    </p></div>
+      </div>
+      <div><paper-toggle-button id="toggle-fog" checked="">Fog / depth</paper-toggle-button></div>
+      <div>Speed <paper-slider id="speed-slider" min="0" max="100" step="0.5"></paper-slider></div>
+      <div><paper-checkbox id="toggle-stats">Show stats</paper-checkbox></div>
+    </div>
     <div main="">
       <div id="canvas-container"></div>
       <paper-fab id="play-pause"></paper-fab>
@@ -19337,7 +20375,6 @@ Phases of animation:
 (function() {
 
 var state = {
-  playing: true,
   rotate: false,
   flash: false,
 };
@@ -19424,27 +20461,53 @@ function initControls() {
   });
   colorSelect.selected = 0;
 
+  var sliderSpeed = 30;
+  var previousSpeed = sliderSpeed;
+  var speedSlider = document.querySelector('#speed-slider');
+  function speedSliderChange(event) {
+    if (event.target.value) {
+      previousSpeed = event.target.value;
+    }
+    sliderSpeed = event.target.immediateValue;
+    buttonStateChanged();
+  }
+  speedSlider.addEventListener('change', speedSliderChange);
+  speedSlider.addEventListener('immediate-value-change', speedSliderChange);
+
   var stateButtons = {};
 
   function buttonStateChanged() {
-    stateButtons.playing.icon = state.playing ? 'av:pause' : 'av:play-arrow';
+    step = (state.flash ? 3 : 1) * sliderSpeed / 60;
+    if (speedSlider.immediateValue !== sliderSpeed) {
+      speedSlider.value = sliderSpeed;
+    }
+    stateButtons.playing.icon = step ? 'av:pause' : 'av:play-arrow';
     stateButtons.flash.style.color = state.flash ? '#ffff00' : 'white';
     stateButtons.rotate.style.color = state.rotate ? '#ffff00' : 'white';
-    step = !state.playing ? 0 : state.flash ? 2 : 0.5;
   }
 
-  function toggleButton(selector, name) {
+  function toggleButton(selector, name, func) {
     var button = document.querySelector(selector);
     stateButtons[name] = button;
     button.addEventListener('click', function() {
-      state[name] = !state[name];
+      if (func) {
+        func();
+      } else {
+        state[name] = !state[name];
+      }
       buttonStateChanged();
     });
   }
 
-  toggleButton('#play-pause', 'playing');
   toggleButton('#rotate', 'rotate');
   toggleButton('#flash', 'flash');
+  toggleButton('#play-pause', 'playing', function () {
+    if (sliderSpeed) {
+      sliderSpeed = 0;
+    } else {
+      sliderSpeed = previousSpeed;
+    }
+  });
 
   buttonStateChanged();
 
@@ -19542,11 +20605,13 @@ function animate() {
   requestAnimationFrame(animate);
   stats.begin();
 
+  var delta = position - lastPosition;
+
   if (state.rotate) {
-    applyGlobalMatrix((new THREE.Matrix4()).makeRotationZ(-Math.PI / 256 * step));
+    applyGlobalMatrix((new THREE.Matrix4()).makeRotationZ(-Math.PI / 256 * delta));
   }
 
-  if (state.flash && state.playing) {
+  if (state.flash && delta) {
     camera.lookAt(sphereRandom().multiplyScalar(5));
   } else {
     camera.lookAt(new THREE.Vector3(0, 0, 0));
@@ -19570,7 +20635,7 @@ function animate() {
   innerMesh.matrix.multiplyScalar(scaleFactor);
   innerMesh.matrix.elements[15] = 1;
 
-  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04 * Math.abs(position - lastPosition));
+  var recenter = (new THREE.Vector3()).setFromMatrixPosition(innerMesh.matrix).multiplyScalar(-0.04 * Math.abs(delta));
   applyGlobalMatrix((new THREE.Matrix4()).setPosition(recenter));
 
   renderer.render(scene, camera);
