@@ -227,11 +227,11 @@ function initWebGL() {
   // lights
 
   var light = new THREE.DirectionalLight(0xffffff);
-  light.position.set(1, 0, 0);
+  light.position.set(1, 0, -0.5);
   scene.add(light);
 
   light = new THREE.DirectionalLight(0x002288);
-  light.position.set(-1, -1, -1);
+  light.position.set(-0.5, -1, 0);
   scene.add(light);
   colorLights.push(light);
 
