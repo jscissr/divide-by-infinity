@@ -50,6 +50,22 @@ iron-dropdown.paper-menu-button {
   top: inherit!important;
 }
 </style>
+<style id="color-style">
+/* primary background-color & border-color */
+body.fullbleed paper-toolbar,
+body.fullbleed paper-toggle-button[checked]:not([disabled]) .toggle-button.paper-toggle-button,
+body.fullbleed paper-toggle-button[checked]:not([disabled]) .toggle-bar.paper-toggle-button,
+body.fullbleed #sliderKnobInner.paper-slider,
+body.fullbleed #primaryProgress.paper-progress,
+body.fullbleed #checkbox.checked.paper-checkbox,
+body.fullbleed .focused-line.paper-input-container {}
+/* primary color */
+body.fullbleed .input-content.label-is-highlighted.paper-input-container label,
+body.fullbleed #ink[checked].paper-checkbox,
+body.fullbleed paper-toggle-button[checked] .toggle-ink.paper-toggle-button {}
+/* accent background-color */
+body.fullbleed paper-fab {}
+</style>
 <script src="bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
 <link href="bower_components/paper-fab/paper-fab.html" rel="import">
 <link href="bower_components/paper-toolbar/paper-toolbar.html" rel="import">
@@ -181,11 +197,14 @@ function initControls() {
     item.innerText = color.label;
     Polymer.dom(colorSelect).appendChild(item);
   });
+  var colorRules = document.querySelector('#color-style').sheet.rules;
   colorSelect.addEventListener('iron-select', function () {
     var color = colors[colorSelect.selected];
 
-    document.querySelector('paper-toolbar').style.background = color.primary;
-    document.querySelector('paper-fab').style.background = color.accent;
+    colorRules[0].style.setProperty('background-color', color.primary);
+    colorRules[0].style.setProperty('border-color', color.primary);
+    colorRules[1].style.setProperty('color', color.primary);
+    colorRules[2].style.setProperty('background-color', color.accent);
 
     colorLights[0].color = new THREE.Color(color.primary);
     colorLights[1].color = new THREE.Color(color.accent);
