@@ -26,6 +26,9 @@ body {
   bottom: 24px;
   right: 24px;
 }
+#stop-button {
+  color: white;
+}
 canvas {
   display: block;
 }
@@ -76,7 +79,8 @@ body.fullbleed paper-toggle-button[checked]:not([disabled]) .toggle-bar.paper-to
 body.fullbleed #sliderKnobInner.paper-slider,
 body.fullbleed #primaryProgress.paper-progress,
 body.fullbleed #checkbox.checked.paper-checkbox,
-body.fullbleed .focused-line.paper-input-container {}
+body.fullbleed .focused-line.paper-input-container,
+#stop-button {}
 /* primary color */
 body.fullbleed .input-content.label-is-highlighted.paper-input-container label,
 body.fullbleed #ink[checked].paper-checkbox,
@@ -20833,6 +20837,7 @@ The `aria-labelledby` attribute will be set to the header element, if one exists
       </div>
       <div><paper-toggle-button id="toggle-fog" checked="">Fog / depth</paper-toggle-button></div>
       <div>Speed <paper-slider id="speed-slider" min="0" max="100" step="0.5"></paper-slider></div>
+      <div><paper-button raised="" id="stop-button">Do not click</paper-button></div>
       <div><paper-checkbox id="toggle-stats">Show stats</paper-checkbox></div>
       <div><paper-button raised="" id="about-button">About</paper-button></div>
     </div>
@@ -20872,6 +20877,7 @@ var state = {
 
 var camera, scene, renderer, stats;
 var colorLights = [];
+var ending = null;
 
 function init() {
   initWebGL();
@@ -20892,6 +20898,60 @@ function initControls() {
 
   document.querySelector('#about-button').addEventListener('click', function() {
     document.querySelector('#about-dialog').open();
+  });
+
+  const endings = [
+    function * () {
+      for (var i = 0; i < 40; i++) {
+        yield;
+      }
+      for (var i = 0; i <= 120; i++) {
+        scene.fog.color.set(0x010101 * Math.floor(0xff * i / 120));
+        renderer.setClearColor(scene.fog.color);
+        yield;
+      }
+      for (var i = 0; i <= 80; i++) {
+        renderer.domElement.style.opacity = 1 - i / 80;
+        yield;
+      }
+      for (var i = 0; i < 150; i++) {
+        yield;
+      }
+      scene.fog.color.set(0x000000);
+      renderer.setClearColor(scene.fog.color)
+      renderer.domElement.style.opacity = 1;
+      ending = null;
+    },
+    function * () {
+      for (var i = 0; i < 40; i++) {
+        yield;
+      }
+      for (var i = 1; i <= 40; i++) {
+        for (var j = 0; j < 8; j++) {
+          yield;
+        }
+        var size = getSize();
+        renderer.setSize(pixelateInterpolate(size.width, 1, i / 40), pixelateInterpolate(size.height, 1, i / 40));
+        renderer.domElement.style.width = size.width + 'px';
+        renderer.domElement.style.height = size.height + 'px';
+        renderer.domElement.style.imageRendering = 'pixelated';
+      }
+      for (var i = 0; i < 150; i++) {
+        yield;
+      }
+      renderer.domElement.style.imageRendering = '';
+      onWindowResize();
+      ending = null;
+    },
+
+  ];
+  var lastEnding = 0;
+  document.querySelector('#stop-button').addEventListener('click', function() {
+    if (ending) {
+      return;
+    }
+    ending = endings[lastEnding]();
+    lastEnding = (lastEnding + 1) % endings.length;
   });
 
   stats = new Stats();
@@ -21102,6 +21162,10 @@ var outerMesh,
 function animate() {
   requestAnimationFrame(animate);
   stats.begin();
+
+  if (ending) {
+    ending.next();
+  }
 
   var delta = position - lastPosition;
 
@@ -21354,6 +21418,10 @@ function sphereRandom() {
       return new THREE.Vector3(x, y, z);
     }
   }
+}
+
+function pixelateInterpolate(v0, v1, t) {
+  return v0 + (Math.log10(t) / 4 + 1) * (v1 - v0);
 }
 
 init();
