@@ -1,4 +1,4 @@
-# About geometry details
+# About divide by infinity
 
 This is an art project with WebGL & Material Design. It was built Nov-Dec 2015 by Jan Schär.
 

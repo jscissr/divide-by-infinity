@@ -1,5 +1,5 @@
 {
-  "name": "geometry-details",
+  "name": "divide-by-infinity",
   "version": "1.0.0",
   "description": "Art project with WebGL & Material Design",
   "main": "index.js",
@@ -11,13 +11,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jscissr/geometry-details.git"
+    "url": "git+https://github.com/jscissr/divide-by-infinity.git"
   },
   "author": "Jan Schär <jscissr@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/jscissr/geometry-details/issues"
+    "url": "https://github.com/jscissr/divide-by-infinity/issues"
   },
-  "homepage": "https://jscissr.github.io/geometry-details/",
+  "homepage": "https://jscissr.github.io/divide-by-infinity/",
   "private": true
 }

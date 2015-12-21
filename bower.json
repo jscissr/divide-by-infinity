@@ -1,5 +1,5 @@
 {
-  "name": "geometry-details",
+  "name": "divide-by-infinity",
   "authors": [
     "Jan Schär <jscissr@gmail.com>"
   ],
@@ -13,7 +13,7 @@
     "material"
   ],
   "license": "MIT",
-  "homepage": "http://jscissr.github.io/geometry-details/",
+  "homepage": "http://jscissr.github.io/divide-by-infinity/",
   "private": true,
   "dependencies": {
     "polymer": "Polymer/polymer#^1.2.0",
