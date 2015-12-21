@@ -49,6 +49,9 @@ iron-dropdown.paper-menu-button {
   left: inherit!important;
   top: inherit!important;
 }
+a {
+  text-decoration: none;
+}
 </style>
 <style id="color-style">
 /* primary background-color & border-color */
@@ -82,6 +85,10 @@ body.fullbleed paper-fab {}
 <link href="bower_components/paper-checkbox/paper-checkbox.html" rel="import">
 <link href="bower_components/paper-toggle-button/paper-toggle-button.html" rel="import">
 <link href="bower_components/paper-slider/paper-slider.html" rel="import">
+<link href="bower_components/paper-button/paper-button.html" rel="import">
+<link href="bower_components/paper-dialog/paper-dialog.html" rel="import">
+<link href="bower_components/neon-animation/animations/slide-down-animation.html" rel="import">
+<link href="bower_components/neon-animation/animations/fade-out-animation.html" rel="import">
 <body class="fullbleed layout vertical">
 <paper-header-panel mode="seamed" class="flex">
   <paper-toolbar>
@@ -100,6 +107,7 @@ body.fullbleed paper-fab {}
       <div><paper-toggle-button id="toggle-fog" checked>Fog / depth</paper-toggle-button></div>
       <div>Speed <paper-slider id="speed-slider" min="0" max="100" step="0.5" /></div>
       <div><paper-checkbox id="toggle-stats">Show stats</paper-checkbox></div>
+      <div><paper-button raised id="about-button">About</paper-button></div>
     </div>
     <div main>
       <div id="canvas-container"></div>
@@ -108,6 +116,15 @@ body.fullbleed paper-fab {}
     </div>
   </paper-drawer-panel>
 </paper-header-panel>
+<paper-dialog id="about-dialog" with-backdrop entry-animation="slide-down-animation" exit-animation="fade-out-animation">
+  <h2>About geometry details</h2>
+  <p>This is an art project with WebGL & Material Design. It was built Nov-Dec 2015 by Jan Schär.
+  <p>The code and more info is available at <a href="https://github.com/jscissr/geometry-details">GitHub</a>.
+  <p>It is built on <a href="http://threejs.org">three.js</a> and <a href="https://www.polymer-project.org">Polymer</a>.
+  <div class="buttons">
+    <paper-button dialog-dismiss>Close</paper-button>
+  </div>
+</paper-dialog>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
 <script src="https://rawgit.com/mrdoob/stats.js/master/build/stats.min.js"></script>
 <script>
@@ -144,6 +161,10 @@ function init() {
 function initControls() {
   document.querySelector('#toggle-menu').addEventListener('click', function() {
     document.querySelector('paper-drawer-panel').togglePanel();
+  });
+
+  document.querySelector('#about-button').addEventListener('click', function() {
+    document.querySelector('#about-dialog').open();
   });
 
   stats = new Stats();

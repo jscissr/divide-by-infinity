@@ -1,7 +1,7 @@
 {
   "name": "geometry-details",
   "version": "1.0.0",
-  "description": "Arts project with WebGL & Material Design",
+  "description": "Art project with WebGL & Material Design",
   "main": "index.js",
   "devDependencies": {
     "vulcanize": "^1.14.0"
@@ -18,5 +18,6 @@
   "bugs": {
     "url": "https://github.com/jscissr/geometry-details/issues"
   },
-  "homepage": "https://jscissr.github.io/geometry-details/"
+  "homepage": "https://jscissr.github.io/geometry-details/",
+  "private": true
 }

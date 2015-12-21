@@ -64,6 +64,9 @@ iron-dropdown.paper-menu-button {
   left: inherit!important;
   top: inherit!important;
 }
+a {
+  text-decoration: none;
+}
 </style>
 <style id="color-style">
 /* primary background-color & border-color */
@@ -14202,6 +14205,267 @@ context. You should place this element as a child of `<body>` whenever possible.
 
 
 
+
+
+<script>
+
+/**
+Use `Polymer.PaperDialogBehavior` and `paper-dialog-shared-styles.html` to implement a Material Design
+dialog.
+
+For example, if `<paper-dialog-impl>` implements this behavior:
+
+    <paper-dialog-impl>
+        <h2>Header</h2>
+        <div>Dialog body</div>
+        <div class="buttons">
+            <paper-button dialog-dismiss>Cancel</paper-button>
+            <paper-button dialog-confirm>Accept</paper-button>
+        </div>
+    </paper-dialog-impl>
+
+`paper-dialog-shared-styles.html` provide styles for a header, content area, and an action area for buttons.
+Use the `<h2>` tag for the header and the `buttons` class for the action area. You can use the
+`paper-dialog-scrollable` element (in its own repository) if you need a scrolling content area.
+
+Use the `dialog-dismiss` and `dialog-confirm` attributes on interactive controls to close the
+dialog. If the user dismisses the dialog with `dialog-confirm`, the `closingReason` will update
+to include `confirmed: true`.
+
+### Styling
+
+The following custom properties and mixins are available for styling.
+
+Custom property | Description | Default
+----------------|-------------|----------
+`--paper-dialog-background-color` | Dialog background color                     | `--primary-background-color`
+`--paper-dialog-color`            | Dialog foreground color                     | `--primary-text-color`
+`--paper-dialog`                  | Mixin applied to the dialog                 | `{}`
+`--paper-dialog-title`            | Mixin applied to the title (`<h2>`) element | `{}`
+`--paper-dialog-button-color`     | Button area foreground color                | `--default-primary-color`
+
+### Accessibility
+
+This element has `role="dialog"` by default. Depending on the context, it may be more appropriate
+to override this attribute with `role="alertdialog"`.
+
+If `modal` is set, the element will set `aria-modal` and prevent the focus from exiting the element.
+It will also ensure that focus remains in the dialog.
+
+The `aria-labelledby` attribute will be set to the header element, if one exists.
+
+@hero hero.svg
+@demo demo/index.html
+@polymerBehavior Polymer.PaperDialogBehavior
+*/
+
+  Polymer.PaperDialogBehaviorImpl = {
+
+    hostAttributes: {
+      'role': 'dialog',
+      'tabindex': '-1'
+    },
+
+    properties: {
+
+      /**
+       * If `modal` is true, this implies `no-cancel-on-outside-click` and `with-backdrop`.
+       */
+      modal: {
+        observer: '_modalChanged',
+        type: Boolean,
+        value: false
+      },
+
+      /** @type {?Node} */
+      _lastFocusedElement: {
+        type: Object
+      },
+
+      _boundOnFocus: {
+        type: Function,
+        value: function() {
+          return this._onFocus.bind(this);
+        }
+      },
+
+      _boundOnBackdropClick: {
+        type: Function,
+        value: function() {
+          return this._onBackdropClick.bind(this);
+        }
+      }
+
+    },
+
+    listeners: {
+      'tap': '_onDialogClick',
+      'iron-overlay-opened': '_onIronOverlayOpened',
+      'iron-overlay-closed': '_onIronOverlayClosed'
+    },
+
+    attached: function() {
+      this._observer = this._observe(this);
+      this._updateAriaLabelledBy();
+    },
+
+    detached: function() {
+      if (this._observer) {
+        this._observer.disconnect();
+      }
+    },
+
+    _observe: function(node) {
+      var observer = new MutationObserver(function() {
+        this._updateAriaLabelledBy();
+      }.bind(this));
+      observer.observe(node, {
+        childList: true,
+        subtree: true
+      });
+      return observer;
+    },
+
+    _modalChanged: function() {
+      if (this.modal) {
+        this.setAttribute('aria-modal', 'true');
+      } else {
+        this.setAttribute('aria-modal', 'false');
+      }
+      // modal implies noCancelOnOutsideClick and withBackdrop if true, don't overwrite
+      // those properties otherwise.
+      if (this.modal) {
+        this.noCancelOnOutsideClick = true;
+        this.withBackdrop = true;
+      }
+    },
+
+    _updateAriaLabelledBy: function() {
+      var header = Polymer.dom(this).querySelector('h2');
+      if (!header) {
+        this.removeAttribute('aria-labelledby');
+        return;
+      }
+      var headerId = header.getAttribute('id');
+      if (headerId && this.getAttribute('aria-labelledby') === headerId) {
+        return;
+      }
+      // set aria-describedBy to the header element
+      var labelledById;
+      if (headerId) {
+        labelledById = headerId;
+      } else {
+        labelledById = 'paper-dialog-header-' + new Date().getUTCMilliseconds();
+        header.setAttribute('id', labelledById);
+      }
+      this.setAttribute('aria-labelledby', labelledById);
+    },
+
+    _updateClosingReasonConfirmed: function(confirmed) {
+      this.closingReason = this.closingReason || {};
+      this.closingReason.confirmed = confirmed;
+    },
+
+    _onDialogClick: function(event) {
+      var target = event.target;
+      while (target && target !== this) {
+        if (target.hasAttribute) {
+          if (target.hasAttribute('dialog-dismiss')) {
+            this._updateClosingReasonConfirmed(false);
+            this.close();
+            break;
+          } else if (target.hasAttribute('dialog-confirm')) {
+            this._updateClosingReasonConfirmed(true);
+            this.close();
+            break;
+          }
+        }
+        target = target.parentNode;
+      }
+    },
+
+    _onIronOverlayOpened: function() {
+      if (this.modal) {
+        document.body.addEventListener('focus', this._boundOnFocus, true);
+        this.backdropElement.addEventListener('click', this._boundOnBackdropClick);
+      }
+    },
+
+    _onIronOverlayClosed: function() {
+      document.body.removeEventListener('focus', this._boundOnFocus, true);
+      this.backdropElement.removeEventListener('click', this._boundOnBackdropClick);
+    },
+
+    _onFocus: function(event) {
+      if (this.modal) {
+        var target = event.target;
+        while (target && target !== this && target !== document.body) {
+          target = target.parentNode;
+        }
+        if (target) {
+          if (target === document.body) {
+            if (this._lastFocusedElement) {
+              this._lastFocusedElement.focus();
+            } else {
+              this._focusNode.focus();
+            }
+          } else {
+            this._lastFocusedElement = event.target;
+          }
+        }
+      }
+    },
+
+    _onBackdropClick: function() {
+      if (this.modal) {
+        if (this._lastFocusedElement) {
+          this._lastFocusedElement.focus();
+        } else {
+          this._focusNode.focus();
+        }
+      }
+    }
+
+  };
+
+  /** @polymerBehavior */
+  Polymer.PaperDialogBehavior = [Polymer.IronOverlayBehavior, Polymer.PaperDialogBehaviorImpl];
+
+</script>
+
+
+
+
+<script>
+
+  Polymer({
+
+    is: 'slide-down-animation',
+
+    behaviors: [
+      Polymer.NeonAnimationBehavior
+    ],
+
+    configure: function(config) {
+      var node = config.node;
+
+      if (config.transformOrigin) {
+        this.setPrefixedProperty(node, 'transformOrigin', config.transformOrigin);
+      } else {
+        this.setPrefixedProperty(node, 'transformOrigin', '50% 0');
+      }
+
+      this._effect = new KeyframeEffect(node, [
+        {'transform': 'translateY(-100%)'},
+        {'transform': 'none'}
+      ], this.timingFromConfig(config));
+
+      return this._effect;
+    }
+
+  });
+
+</script>
 </head><body class="fullbleed layout vertical"><div hidden="" by-vulcanize=""><dom-module id="iron-icon" assetpath="bower_components/iron-icon/">
 
   <style>
@@ -20351,6 +20615,207 @@ context. You should place this element as a child of `<body>` whenever possible.
    */
 
 </script>
+<dom-module id="paper-button" assetpath="bower_components/paper-button/">
+  <template strip-whitespace="">
+
+    <style include="paper-material">
+      :host {
+        display: inline-block;
+        position: relative;
+        box-sizing: border-box;
+        min-width: 5.14em;
+        margin: 0 0.29em;
+        background: transparent;
+        text-align: center;
+        font: inherit;
+        text-transform: uppercase;
+        outline-width: 0;
+        border-radius: 3px;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: pointer;
+        z-index: 0;
+        padding: 0.7em 0.57em;
+
+        @apply(--paper-button);
+      }
+
+      :host([raised].keyboard-focus) {
+        font-weight: bold;
+        @apply(--paper-button-raised-keyboard-focus);
+      }
+
+      :host(:not([raised]).keyboard-focus) {
+        font-weight: bold;
+        @apply(--paper-button-flat-keyboard-focus);
+      }
+
+      :host([disabled]) {
+        background: #eaeaea;
+        color: #a8a8a8;
+        cursor: auto;
+        pointer-events: none;
+
+        @apply(--paper-button-disabled);
+      }
+
+      paper-ripple {
+        color: var(--paper-button-ink-color);
+      }
+
+      :host > ::content * {
+        text-transform: inherit;
+      }
+    </style>
+    <content></content>
+  </template>
+</dom-module>
+
+<script>
+  Polymer({
+    is: 'paper-button',
+
+    behaviors: [
+      Polymer.PaperButtonBehavior
+    ],
+
+    properties: {
+      /**
+       * If true, the button should be styled with a shadow.
+       */
+      raised: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+        observer: '_calculateElevation'
+      }
+    },
+
+    _calculateElevation: function() {
+      if (!this.raised) {
+        this._setElevation(0);
+      } else {
+        Polymer.PaperButtonBehaviorImpl._calculateElevation.apply(this);
+      }
+    }
+    /**
+
+    Fired when the animation finishes.
+    This is useful if you want to wait until
+    the ripple animation finishes to perform some action.
+
+    @event transitionend
+    @param {{node: Object}} detail Contains the animated node.
+    */
+  });
+</script>
+<dom-module id="paper-dialog-shared-styles" assetpath="bower_components/paper-dialog-behavior/">
+  <template>
+    <style>
+      :host {
+        display: block;
+        margin: 24px 40px;
+        -webkit-overflow-scrolling: touch;
+
+        background: var(--paper-dialog-background-color, --primary-background-color);
+        color: var(--paper-dialog-color, --primary-text-color);
+
+        @apply(--paper-font-body1);
+        @apply(--shadow-elevation-16dp);
+        @apply(--paper-dialog);
+      }
+
+      :host > ::content > * {
+        margin-top: 20px;
+        padding: 0 24px;
+      }
+
+      :host > ::content > .no-padding {
+        padding: 0;
+      }
+
+      :host > ::content > *:first-child {
+        margin-top: 24px;
+      }
+
+      :host > ::content > *:last-child {
+        margin-bottom: 24px;
+      }
+
+      :host > ::content h2 {
+        position: relative;
+        margin: 0;
+        @apply(--paper-font-title);
+
+        @apply(--paper-dialog-title);
+      }
+
+      :host > ::content .buttons {
+        position: relative;
+        padding: 8px 8px 8px 24px;
+        margin: 0;
+
+        color: var(--paper-dialog-button-color, --default-primary-color);
+
+        @apply(--layout-horizontal);
+        @apply(--layout-end-justified);
+      }
+    </style>
+  </template>
+</dom-module>
+<dom-module id="paper-dialog" assetpath="bower_components/paper-dialog/">
+  <template>
+    <style include="paper-dialog-shared-styles"></style>
+    <content></content>
+  </template>
+</dom-module>
+
+<script>
+
+(function() {
+
+  Polymer({
+
+    is: 'paper-dialog',
+
+    behaviors: [
+      Polymer.PaperDialogBehavior,
+      Polymer.NeonAnimationRunnerBehavior
+    ],
+
+    listeners: {
+      'neon-animation-finish': '_onNeonAnimationFinish'
+    },
+
+    _renderOpened: function() {
+      if (this.withBackdrop) {
+        this.backdropElement.open();
+      }
+      this.playAnimation('entry');
+    },
+
+    _renderClosed: function() {
+      if (this.withBackdrop) {
+        this.backdropElement.close();
+      }
+      this.playAnimation('exit');
+    },
+
+    _onNeonAnimationFinish: function() {
+      if (this.opened) {
+        this._finishRenderOpened();
+      } else {
+        this._finishRenderClosed();
+      }
+    }
+
+  });
+
+})();
+
+</script>
 </div>
 <paper-header-panel mode="seamed" class="flex">
   <paper-toolbar>
@@ -20369,6 +20834,7 @@ context. You should place this element as a child of `<body>` whenever possible.
       <div><paper-toggle-button id="toggle-fog" checked="">Fog / depth</paper-toggle-button></div>
       <div>Speed <paper-slider id="speed-slider" min="0" max="100" step="0.5"></paper-slider></div>
       <div><paper-checkbox id="toggle-stats">Show stats</paper-checkbox></div>
+      <div><paper-button raised="" id="about-button">About</paper-button></div>
     </div>
     <div main="">
       <div id="canvas-container"></div>
@@ -20377,6 +20843,15 @@ context. You should place this element as a child of `<body>` whenever possible.
     </div>
   </paper-drawer-panel>
 </paper-header-panel>
+<paper-dialog id="about-dialog" with-backdrop="" entry-animation="slide-down-animation" exit-animation="fade-out-animation">
+  <h2>About geometry details</h2>
+  <p>This is an art project with WebGL &amp; Material Design. It was built Nov-Dec 2015 by Jan Schär.
+  </p><p>The code and more info is available at <a href="https://github.com/jscissr/geometry-details">GitHub</a>.
+  </p><p>It is built on <a href="http://threejs.org">three.js</a> and <a href="https://www.polymer-project.org">Polymer</a>.
+  </p><div class="buttons">
+    <paper-button dialog-dismiss="">Close</paper-button>
+  </div>
+</paper-dialog>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r73/three.js"></script>
 <script src="https://rawgit.com/mrdoob/stats.js/master/build/stats.min.js"></script>
 <script>
@@ -20413,6 +20888,10 @@ function init() {
 function initControls() {
   document.querySelector('#toggle-menu').addEventListener('click', function() {
     document.querySelector('paper-drawer-panel').togglePanel();
+  });
+
+  document.querySelector('#about-button').addEventListener('click', function() {
+    document.querySelector('#about-dialog').open();
   });
 
   stats = new Stats();
