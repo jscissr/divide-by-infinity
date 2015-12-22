@@ -348,6 +348,28 @@ function initControls() {
   document.addEventListener('mousemove', onContainerMove);
   document.addEventListener('mouseup', onContainerUp);
   container.addEventListener('mousewheel', onMouseWheel);
+
+  container.addEventListener('touchstart', function (event) {
+    onContainerDown({
+      preventDefault: event.preventDefault.bind(event),
+      stopPropagation: event.stopPropagation.bind(event),
+      clientX: event.changedTouches[0].clientX,
+      clientY: event.changedTouches[0].clientY,
+    });
+  });
+  container.addEventListener('touchmove', function (event) {
+    onContainerMove({
+      preventDefault: event.preventDefault.bind(event),
+      clientX: event.changedTouches[0].clientX,
+      clientY: event.changedTouches[0].clientY,
+    });
+  });
+  container.addEventListener('touchend', function (event) {
+    onContainerUp({
+      clientX: event.changedTouches[0].clientX,
+      clientY: event.changedTouches[0].clientY,
+    });
+  });
 }
 
 function getSize() {
